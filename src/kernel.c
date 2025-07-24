@@ -18,7 +18,7 @@ void kernel_main(void)
 	initIdt();
 	disable_translation();
 	switch_scancode_set(2);
-	terminal_writestring("Pine is up and running!\n");
+	terminal_writestring("PygmaliOS is up and running!\n");
 	terminal_shell_set();
 	while(1){
 		screen_writer();

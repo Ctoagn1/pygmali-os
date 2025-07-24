@@ -1,5 +1,5 @@
-#ifndef PINE_IO
-#define PINE_IO
+#ifndef IO_FUNCTIONS
+#define IO_FUNCTIONS
 
 #include <stdint.h>
 #include <stdint.h>

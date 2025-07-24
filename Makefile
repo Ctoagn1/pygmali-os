@@ -9,7 +9,7 @@ OBJDIR := build
 C_SRCS := $(wildcard $(SRCDIR)/*.c)
 OBJS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(C_SRCS)) $(OBJDIR)/boot.o $(OBJDIR)/gdtfind.o $(OBJDIR)/isr_wrapper.o
 
-KERNEL = pine.kernel
+KERNEL = pygmalios.kernel
 ISO_DIR = isodir
 
 CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -I$(INCDIR)
@@ -42,10 +42,10 @@ iso: $(KERNEL)
 	mkdir -p $(ISO_DIR)/boot/grub
 	cp $(KERNEL) $(ISO_DIR)/boot/
 	cp grub.cfg $(ISO_DIR)/boot/grub/
-	$(GRUBMAKE) -o pine.iso $(ISO_DIR)
+	$(GRUBMAKE) -o pygmalios.iso $(ISO_DIR)
 
 run : iso
-	qemu-system-i386 -machine pc -cdrom pine.iso
+	qemu-system-i386 -machine pc -cdrom pygmalios.iso
 
 clean:
-	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pine.iso
+	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pygmalios.iso

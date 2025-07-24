@@ -1,5 +1,5 @@
-#ifndef PINE_GDT
-#define PINE_GDT
+#ifndef INIT_GDT
+#define INIT_GDT
 
 #include <stddef.h>
 #include <stdint.h>

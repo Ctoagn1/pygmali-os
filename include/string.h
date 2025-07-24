@@ -1,5 +1,5 @@
-#ifndef PINE_STRING_H
-#define PINE_STRING_H
+#ifndef STRING_COMMANDS
+#define STRING_COMMANDS
 
 #include <stddef.h>
 
