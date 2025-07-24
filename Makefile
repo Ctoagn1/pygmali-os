@@ -1,0 +1,51 @@
+CCOM = i686-elf-gcc
+ASM = i686-elf-as
+GRUBMAKE = grub-mkrescue
+
+SRCDIR := src
+INCDIR := include
+OBJDIR := build
+
+C_SRCS := $(wildcard $(SRCDIR)/*.c)
+OBJS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(C_SRCS)) $(OBJDIR)/boot.o $(OBJDIR)/gdtfind.o $(OBJDIR)/isr_wrapper.o
+
+KERNEL = pine.kernel
+ISO_DIR = isodir
+
+CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -I$(INCDIR)
+LDFLAGS = -T linker.ld -ffreestanding -O2 -nostdlib -lgcc
+
+.PHONY: all clean iso run
+
+all: $(KERNEL)
+$(info OBJS = $(OBJS))
+$(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
+	$(CCOM) $(CFLAGS) -c $< -o $@
+
+$(OBJDIR)/boot.o: boot.s | $(OBJDIR)
+	$(ASM) $< -o $@
+
+$(OBJDIR)/gdtfind.o: gdtfind.s | $(OBJDIR)
+	$(ASM) $< -o $@
+
+$(OBJDIR)/isr_wrapper.o: isr_wrapper.s | $(OBJDIR)
+	$(ASM) $< -o $@
+
+$(KERNEL): $(OBJS) linker.ld
+	$(CCOM) $(LDFLAGS) $(OBJS) -o $@
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+iso: $(KERNEL)
+	rm -rf $(ISO_DIR)
+	mkdir -p $(ISO_DIR)/boot/grub
+	cp $(KERNEL) $(ISO_DIR)/boot/
+	cp grub.cfg $(ISO_DIR)/boot/grub/
+	$(GRUBMAKE) -o pine.iso $(ISO_DIR)
+
+run : iso
+	qemu-system-i386 -machine pc -cdrom pine.iso
+
+clean:
+	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pine.iso

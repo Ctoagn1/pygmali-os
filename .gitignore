@@ -1,0 +1,4 @@
+/isodir/
+/build/
+*.iso
+*.kernel
