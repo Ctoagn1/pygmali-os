@@ -19,6 +19,7 @@ void kernel_main(void)
 	disable_translation();
 	switch_scancode_set(2);
 	terminal_writestring("PygmaliOS is up and running!\n");
+	print_os_name();
 	terminal_shell_set();
 	while(1){
 		screen_writer();

@@ -83,7 +83,7 @@ uint8_t switch_scancode_set(uint8_t set){
     if(inb(KEYBOARD_DATA) != 0xFA){
         return 0xFF;
     }
-    terminal_writestring("switch_scancode_set ran successfully...\n");
+    terminal_writestring("Keyboard set up successfully...\n");
     return 0;
 } //value of 0 gets current scancode set, 1 is scan code set , 2 for set 2, 3 for set 3. 2 is universal support
 
@@ -130,8 +130,7 @@ void disable_translation(){
             return;
         } 
     }
-    outb(KEYBOARD_DATA, command_byte); //writes updated command byte
-    terminal_writestring("disable_translation ran successfully...\n");
+    outb(KEYBOARD_DATA, command_byte); //writes updated command byte;
 }
 
 
