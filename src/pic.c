@@ -66,8 +66,9 @@ void PIC_remap(int offset1, int offset2)
 	// Unmask both PICs.
 	//outb(PIC1_DATA, 0);
 	//outb(PIC2_DATA, 0);
-    // Keyboard only for now, cascade disabled
-    outb(PIC1_DATA, 0b11111101);
+    // Keyboard and real time clock, 2nd byte on for cascade with slave pic
+    outb(PIC1_DATA, 0b11111001);
+    outb(PIC2_DATA, 0b1111110);
 }
 void pic_disable(void) { //To use processor's APIC, the PIC must be disabled.
     outb(PIC1_DATA, 0xff);
