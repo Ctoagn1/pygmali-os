@@ -45,7 +45,7 @@ iso: $(KERNEL)
 	$(GRUBMAKE) -o pygmalios.iso $(ISO_DIR)
 
 run : iso
-	qemu-system-i386 -machine pc -cdrom pygmalios.iso
+	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -cdrom pygmalios.iso
 
 clean:
 	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pygmalios.iso

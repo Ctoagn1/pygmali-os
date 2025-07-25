@@ -20,7 +20,6 @@ char shift_ascii_map[ASCII_MAP_SIZE] = {[A_KEY]='A',[B_KEY]='B',[C_KEY]='C',[D_K
 [_0_KEY]=')',[_1_KEY]='!',[_2_KEY]='@',[_3_KEY]='#',[_4_KEY]='$',[_5_KEY]='%',[_6_KEY]='^',[_7_KEY]='&',[_8_KEY]='*',
 [_9_KEY]='(',[MINUS_KEY]='_',[EQUALS_KEY]='+', [ENTER_KEY]='\n', [TAB_KEY]='\t',[SPACE_KEY]= ' '};
 
-
 static uint8_t keyboard_buffer[BUFFER_SIZE];
 static volatile uint8_t head = 0;
 static volatile uint8_t tail = 0;

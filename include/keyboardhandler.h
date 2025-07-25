@@ -85,8 +85,6 @@
 #define KEYPAD_9_KEY 0x7D
 #define KSCROLLLOCK_KEY 0x7E
 #define F7_KEY 0x83
-#define KEYBOARD_DATA 0x60
-#define KEYBOARD_COMMAND 0x64
 #define BUFFER_SIZE 256
 #define KEYBOARD_SIZE 512
 #define ASCII_MAP_SIZE 256
@@ -96,6 +94,8 @@
 #define PRINTSCREEN_PRESS 513
 #define PRINTSCREEN_RELEASE 514
 #define PAUSE 515
+#define KEYBOARD_DATA 0x60
+#define KEYBOARD_COMMAND 0x64
 
 
 void write_to_buffer_wrapper();

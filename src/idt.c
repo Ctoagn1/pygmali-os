@@ -4,6 +4,7 @@
 #include "idt.h"
 #include "tty.h"
 #include "rtc.h"
+#include "pit.h"
 
 uint64_t idt[IDT_ENTRIES];
 
@@ -24,6 +25,7 @@ void makeIDTEntry(uint64_t *entry, uint32_t offset, uint16_t selector, uint8_t g
 void initIdt(){
     makeIDTEntry(&idt[33], (uint32_t)&write_to_buffer_wrapper, 0x08, 0b1110, 0); //keyboard
     makeIDTEntry(&idt[40], (uint32_t)&update_time_wrapper, 0x08, 0b1110, 0); //real time clock
+    makeIDTEntry(&idt[32], (uint32_t)&pit_timer_wrapper, 0x08, 0b1110, 0); //programmable interval timer
     reloadIDT(sizeof(idt)-1, (uint32_t)&idt);
     terminal_writestring("IDT loaded successfully...\n");
 }

@@ -7,12 +7,13 @@
 #include "pic.h"
 #include "keyboardhandler.h"
 #include "rtc.h"
-
+#include "pit.h"
 
 
 void kernel_main(void) 
 {
 	/* Initialize terminal interface */
+	set_hertz(1000);
 	terminal_initialize();
 	read_startup_time();
 	initGdt();
@@ -24,6 +25,7 @@ void kernel_main(void)
 	terminal_writestring("PygmaliOS is up and running!\n");
 	print_os_name();
 	terminal_shell_set();
+	bad_time();
 	while(1){
 		screen_writer();
 	}

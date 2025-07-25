@@ -1,6 +1,7 @@
 .intel_syntax noprefix
 .globl   write_to_buffer_wrapper
 .globl   update_time_wrapper
+.globl   pit_timer_wrapper
 .align   4
 
 write_to_buffer_wrapper:
@@ -14,5 +15,12 @@ update_time_wrapper:
     pushad
     cld     
     call update_time
+    popad
+    iret
+
+pit_timer_wrapper:
+    pushad
+    cld     
+    call pit_timer
     popad
     iret

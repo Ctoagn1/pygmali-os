@@ -66,8 +66,8 @@ void PIC_remap(int offset1, int offset2)
 	// Unmask both PICs.
 	//outb(PIC1_DATA, 0);
 	//outb(PIC2_DATA, 0);
-    // Keyboard and real time clock, 2nd byte on for cascade with slave pic
-    outb(PIC1_DATA, 0b11111001);
+    // Keyboard,real time clock,pit 2nd byte on for cascade with slave pic
+    outb(PIC1_DATA, 0b11111000);
     outb(PIC2_DATA, 0b1111110);
 }
 void pic_disable(void) { //To use processor's APIC, the PIC must be disabled.
@@ -128,4 +128,10 @@ void IRQ_clear_mask(uint8_t IRQline) {
     }
     value = inb(port) & ~(1 << IRQline);
     outb(port, value);        
+}
+void disable_interrupts(){
+    asm volatile("cli");
+}
+void enable_interrupts(){
+    asm volatile ("sti");
 }
