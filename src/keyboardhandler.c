@@ -3,7 +3,10 @@
 #include "keyboardhandler.h"
 #include "io.h"
 #include "tty.h"
+#include <stdint.h>
 #include "pic.h"
+#include "string.h"
+#include "inputhandler.h"
 _Bool key_state[KEYBOARD_SIZE] = {0};
 char ascii_map[ASCII_MAP_SIZE] = {[A_KEY]='a',[B_KEY]='b',[C_KEY]='c',[D_KEY]='d',[E_KEY]='e',
 [F_KEY]='f',[G_KEY]='g',[H_KEY]='h',[I_KEY]='i',[J_KEY]='j',[K_KEY]='k',[L_KEY]='l',[M_KEY]='m',
@@ -20,13 +23,15 @@ char shift_ascii_map[ASCII_MAP_SIZE] = {[A_KEY]='A',[B_KEY]='B',[C_KEY]='C',[D_K
 [_0_KEY]=')',[_1_KEY]='!',[_2_KEY]='@',[_3_KEY]='#',[_4_KEY]='$',[_5_KEY]='%',[_6_KEY]='^',[_7_KEY]='&',[_8_KEY]='*',
 [_9_KEY]='(',[MINUS_KEY]='_',[EQUALS_KEY]='+', [ENTER_KEY]='\n', [TAB_KEY]='\t',[SPACE_KEY]= ' '};
 
-static uint8_t keyboard_buffer[BUFFER_SIZE];
+static uint8_t keyboard_buffer[KEYBOARD_BUFFER_SIZE];
+char input_buffer[INPUT_BUFFER_SIZE] = {0};
 static volatile uint8_t head = 0;
 static volatile uint8_t tail = 0;
+size_t input_len = 0;
 
 
 void write_to_buffer(){
-    uint8_t next = (head + 1) % BUFFER_SIZE;
+    uint8_t next = (head + 1) % KEYBOARD_BUFFER_SIZE;
     if (next == tail){ //checks if buffer is full
         return;
     }
@@ -139,43 +144,43 @@ _Bool read_from_buffer(uint16_t *data){ //0 on success, 1 on failure
     }
     uint16_t value = 0;
     if (keyboard_buffer[tail] == 0xE0){ //all scancodes that start with 0xE0 are at least 2 bytes
-        if(keyboard_buffer[(tail+1)%BUFFER_SIZE] == 0xF0){
-            if(keyboard_buffer[(tail+2)%BUFFER_SIZE] == 0x7C){
+        if(keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE] == 0xF0){
+            if(keyboard_buffer[(tail+2)%KEYBOARD_BUFFER_SIZE] == 0x7C){
                 value = PRINTSCREEN_RELEASE; //prntscrn released
-                tail = (tail+6)%BUFFER_SIZE;
+                tail = (tail+6)%KEYBOARD_BUFFER_SIZE;
                 *data = value;
                 return 0;
             }
-            value = keyboard_buffer[(tail+2)%BUFFER_SIZE]+E0F0_OFFSET; //0xF0 scancodes end at 387, 0xE0 0xF0 go from 387 to 512
-            tail = (tail+3)%BUFFER_SIZE;
+            value = keyboard_buffer[(tail+2)%KEYBOARD_BUFFER_SIZE]+E0F0_OFFSET; //0xF0 scancodes end at 387, 0xE0 0xF0 go from 387 to 512
+            tail = (tail+3)%KEYBOARD_BUFFER_SIZE;
             *data = value;
             return 0;
         }
         if(keyboard_buffer[tail+1] == 0x12){
             value = PRINTSCREEN_PRESS; //prntscrn pressed
-            tail = (tail+4)%BUFFER_SIZE;
+            tail = (tail+4)%KEYBOARD_BUFFER_SIZE;
             *data = value;
             return 0;
         }
-        value = keyboard_buffer[(tail+1)%BUFFER_SIZE] +E0_OFFSET; //regular scancodes end at 131, 0xE0 go from 132-256
-        tail = (tail+2)%BUFFER_SIZE;
+        value = keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE] +E0_OFFSET; //regular scancodes end at 131, 0xE0 go from 132-256
+        tail = (tail+2)%KEYBOARD_BUFFER_SIZE;
         *data = value;
         return 0;
     }
     if(keyboard_buffer[tail] == 0xE1){
         value = PAUSE; //pause pressed
-        tail = (tail+8)%BUFFER_SIZE;
+        tail = (tail+8)%KEYBOARD_BUFFER_SIZE;
         *data = value;
         return 0;
     }
     if(keyboard_buffer[tail] == 0xF0){
-        value = keyboard_buffer[(tail+1)%BUFFER_SIZE]+F0_OFFSET; //0xE0 scancodes end at 256, 0xF0 go from 257-387
-        tail = (tail+2)%BUFFER_SIZE;
+        value = keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE]+F0_OFFSET; //0xE0 scancodes end at 256, 0xF0 go from 257-387
+        tail = (tail+2)%KEYBOARD_BUFFER_SIZE;
         *data = value;
         return 0;
     }
     value = keyboard_buffer[tail];
-    tail = (tail+1)%BUFFER_SIZE;
+    tail = (tail+1)%KEYBOARD_BUFFER_SIZE;
     *data = value;
     return 0;
 }
@@ -206,19 +211,42 @@ char scancode_to_char(uint16_t keynum){
     return keyletter;
     
 }
+void add_to_input_buffer(char newinput){
+    if(input_len<INPUT_BUFFER_SIZE-1){
+        input_buffer[input_len] = newinput;
+        input_len++;
+        input_buffer[input_len] = '\0'; //ensure null termination
+    }
+}
+void remove_from_input_buffer(){
+    if(input_len>0){
+        input_len--;
+        input_buffer[input_len]='\0';
+    }
+}
+void clear_input_buffer(){
+    memset(input_buffer, 0, INPUT_BUFFER_SIZE);
+    input_len=0;
+}
 void screen_writer(){
     is_input_from_user=1;
     uint16_t data;
-    if(read_from_buffer(&data)){
+    if(read_from_buffer(&data)){ //returns if no new characters
         return;
     }
     if(data == BACKSPACE_KEY){
         terminal_backspace();
+        remove_from_input_buffer();
         return;
     }
     update_key_state(data);
     char key = scancode_to_char(data);
-    if(key != '\0'){
-        terminal_putchar(key);
+    if(key == '\0') return;
+    if(key == '\n'){
+        terminal_putchar('\n');
+        parse_and_run();
+        return;
     }
+        terminal_putchar(key);
+        add_to_input_buffer(key);
 }

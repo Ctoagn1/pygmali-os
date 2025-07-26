@@ -8,6 +8,7 @@
 #include "keyboardhandler.h"
 #include "rtc.h"
 #include "pit.h"
+#include "printf.h"
 
 
 void kernel_main(void) 
@@ -25,8 +26,9 @@ void kernel_main(void)
 	terminal_writestring("PygmaliOS is up and running!\n");
 	print_os_name();
 	terminal_shell_set();
-	bad_time();
+	//bad_time();
 	while(1){
 		screen_writer();
+		msleep(10);
 	}
 }

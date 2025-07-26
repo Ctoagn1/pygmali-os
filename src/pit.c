@@ -27,7 +27,33 @@ Bits         Usage
 #include <stdint.h>
 #include "pic.h"
 #include "pit.h"
+#include "note_definitions.h"
 uint64_t ms_timer=0;
+Note note_table[] = {
+    {33, "C1"}, {35, "CSHARP1"}, {37, "D1"}, {39, "DSHARP1"},
+    {41, "E1"}, {44, "F1"}, {46, "FSHARP1"}, {49, "G1"}, {52, "GSHARP1"},
+    {55, "A1"}, {58, "ASHARP1"}, {62, "B1"},
+    
+    {65, "C2"}, {69, "CSHARP2"}, {73, "D2"}, {78, "DSHARP2"},
+    {82, "E2"}, {87, "F2"}, {93, "FSHARP2"}, {98, "G2"}, {104, "GSHARP2"},
+    {110, "A2"}, {117, "ASHARP2"}, {123, "B2"},
+    
+    {131, "C3"}, {139, "CSHARP3"}, {147, "D3"}, {156, "DSHARP3"},
+    {165, "E3"}, {175, "F3"}, {185, "FSHARP3"}, {196, "G3"}, {208, "GSHARP3"},
+    {220, "A3"}, {233, "ASHARP3"}, {247, "B3"},
+    
+    {262, "C4"}, {277, "CSHARP4"}, {294, "D4"}, {311, "DSHARP4"},
+    {330, "E4"}, {349, "F4"}, {370, "FSHARP4"}, {392, "G4"}, {415, "GSHARP4"},
+    {440, "A4"}, {466, "ASHARP4"}, {494, "B4"},
+    
+    {523, "C5"}, {554, "CSHARP5"}, {587, "D5"}, {622, "DSHARP5"},
+    {659, "E5"}, {698, "F5"}, {740, "FSHARP5"}, {784, "G5"}, {831, "GSHARP5"},
+    {880, "A5"}, {932, "ASHARP5"}, {988, "B5"},
+    
+    {1047, "C6"}, {1109, "CSHARP6"}, {1175, "D6"}, {1245, "DSHARP6"},
+    {1319, "E6"}, {1397, "F6"}, {1480, "FSHARP6"}, {1568, "G6"}, {1661, "GSHARP6"},
+    {1760, "A6"}, {1865, "ASHARP6"}, {1976, "B6"}
+};
 void set_hertz(uint16_t hertz){ //the pit oscillates at ~1.193181666...MHz. the data bytes carry the divisor- 
     uint16_t divisor = PIT_FREQUENCY/hertz;
     uint8_t lo_divisor = (divisor & 0xFF1);
@@ -69,18 +95,15 @@ void play_sound(uint16_t hertz, uint32_t duration){
     outb(PC_SPEAKER, 0);
 }
 void bad_time(){
-    play_sound(294, 200);
-	play_sound(294, 200);
-	play_sound(587, 200);
+    play_sound(D4, 200);
+	play_sound(D4, 200);
+	play_sound(D5, 200);
     msleep(100);
-    play_sound(440, 200);
+    play_sound(A4, 200);
 	msleep(200);
-	play_sound(415, 200);
+	play_sound(GSHARP4, 200);
 	msleep(50);
-	play_sound(392, 200);
+	play_sound(G4, 200);
 	msleep(75);
-	play_sound(349, 200);
-}
-void weezer(){
-    
+	play_sound(F4, 200);
 }

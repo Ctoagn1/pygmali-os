@@ -7,6 +7,7 @@
 #include "tty.h"
 #include "io.h"
 #include "keyboardhandler.h"
+#include "inputhandler.h"
 
 #define VGA_WIDTH   80
 #define VGA_HEIGHT  25
@@ -94,9 +95,6 @@ void terminal_putchar(char c)
         if (++terminal_row == VGA_HEIGHT){
 			scroll();
 		}
-		if(is_input_from_user){
-			terminal_shell_set();
-		}
 		return;	
     }
 	terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
@@ -157,7 +155,6 @@ void scroll(){
 		for(uint8_t i=0; i<VGA_WIDTH; i++){
 			terminal_putentryat('\0', terminal_color, i, terminal_row);
 		}
-		terminal_shell_set();
 		return;
 	}
 	memmove(&scroll_buffer[VGA_WIDTH], &scroll_buffer[0],(EXTRA_TEXT_BUFFER_SIZE-VGA_WIDTH)*sizeof(scroll_buffer[0])); //move buffer up

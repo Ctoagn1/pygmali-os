@@ -5,6 +5,12 @@
 #define PC_SPEAKER 0x61
 #define PIT_FREQUENCY 1193182
 #include <stdint.h>
+typedef struct{
+    int frequency;
+    char* name;
+} Note;
+
+extern Note note_table[128];
 extern uint64_t ms_timer;
 void set_hertz(uint16_t hertz);
 void pit_timer_wrapper();

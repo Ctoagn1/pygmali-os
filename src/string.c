@@ -64,3 +64,21 @@ strcat (char *dest, const char *src)
   strcpy (dest + strlen (dest), src);
   return dest;
 }
+#include <stddef.h>
+
+void *
+memset (void *dest, register int val, register size_t len)
+{
+  register unsigned char *ptr = (unsigned char*)dest;
+  while (len-- > 0)
+    *ptr++ = val;
+  return dest;
+}
+int str_to_int(char* val){
+  int return_val=0;
+  for(int i=0; val[i]!='\0'; i++){
+    return_val*=10;
+    return_val +=(val[i]-'0');
+  }
+  return return_val;
+}

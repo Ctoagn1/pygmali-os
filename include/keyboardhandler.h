@@ -85,7 +85,8 @@
 #define KEYPAD_9_KEY 0x7D
 #define KSCROLLLOCK_KEY 0x7E
 #define F7_KEY 0x83
-#define BUFFER_SIZE 256
+#define KEYBOARD_BUFFER_SIZE 256
+#define INPUT_BUFFER_SIZE 1024
 #define KEYBOARD_SIZE 512
 #define ASCII_MAP_SIZE 256
 #define E0_OFFSET 131
@@ -96,6 +97,7 @@
 #define PAUSE 515
 #define KEYBOARD_DATA 0x60
 #define KEYBOARD_COMMAND 0x64
+#include <stdint.h>
 
 
 void write_to_buffer_wrapper();
@@ -104,7 +106,11 @@ uint8_t switch_scancode_set(uint8_t set);
 void update_key_state(uint16_t data);
 char scancode_to_char(uint16_t keynum);
 void screen_writer();
+void add_to_input_buffer(char newinput);
+void remove_from_input_buffer();
+void clear_input_buffer();
 void disable_translation();
+extern char input_buffer[INPUT_BUFFER_SIZE];
 extern _Bool key_state[KEYBOARD_SIZE];
 extern char ascii_map[ASCII_MAP_SIZE];
 extern char shift_ascii_map[ASCII_MAP_SIZE];
