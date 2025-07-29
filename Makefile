@@ -37,6 +37,8 @@ $(KERNEL): $(OBJS) linker.ld
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
+fs: $(KERNEL)
+	./movetodisk.sh
 iso: $(KERNEL)
 	rm -rf $(ISO_DIR)
 	mkdir -p $(ISO_DIR)/boot/grub
@@ -44,8 +46,8 @@ iso: $(KERNEL)
 	cp grub.cfg $(ISO_DIR)/boot/grub/
 	$(GRUBMAKE) -o pygmalios.iso $(ISO_DIR)
 
-run : iso
-	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -cdrom pygmalios.iso
+run : 
+	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -hda disk.img
 
 clean:
 	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pygmalios.iso

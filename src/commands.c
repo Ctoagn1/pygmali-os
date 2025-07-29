@@ -3,6 +3,7 @@
 #include "string.h"
 #include "printf.h"
 #include "inputhandler.h"
+#include "rtc.h"
 void cmd_echo(int argc, char argv[MAX_ARGS][ARG_SIZE]){
     for(int i=1; i<=argc; i++){
         terminal_writestring(argv[i]);
@@ -38,4 +39,10 @@ void cmd_play_note(int argc, char argv[MAX_ARGS][ARG_SIZE]){
         return;
     }
     play_sound(frequency, interval);
+}
+void cmd_clear(int argc, char argv[MAX_ARGS][ARG_SIZE]){
+    terminal_initialize();
+}
+void cmd_time(int argc, char argv[MAX_ARGS][ARG_SIZE]){
+    display_time();
 }

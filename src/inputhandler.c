@@ -16,6 +16,8 @@ Command commands[] = {
     {"echo", cmd_echo},
     {"help", cmd_help},
     {"play", cmd_play_note},
+    {"clear", cmd_clear},
+    {"time", cmd_time},
     {NULL, NULL} //signals end of list
 };
 

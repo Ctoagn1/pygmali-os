@@ -45,6 +45,7 @@ SECTIONS
 	{
 		*(COMMON)
 		*(.bss)
+		_end = .; /* Defines end at current location, end of kernel code*/
 	}
 
 	/* The compiler may produce other sections, by default it will put them in

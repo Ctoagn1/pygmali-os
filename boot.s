@@ -77,6 +77,9 @@ _start:
 	stack since (pushed 0 bytes so far), so the alignment has thus been
 	preserved and the call is well defined.
 	*/
+	push %ebx /*GRUB maps memory and copies end to ebx, the max on 32-bit is 4gb anyway which most modern machines
+	have but eh still should check*/
+	push %eax
 	call kernel_main
     
     /*

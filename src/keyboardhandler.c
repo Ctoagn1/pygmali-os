@@ -28,7 +28,7 @@ char input_buffer[INPUT_BUFFER_SIZE] = {0};
 static volatile uint8_t head = 0;
 static volatile uint8_t tail = 0;
 size_t input_len = 0;
-
+_Bool capslock_on = 0;
 
 void write_to_buffer(){
     uint8_t next = (head + 1) % KEYBOARD_BUFFER_SIZE;
@@ -186,14 +186,14 @@ _Bool read_from_buffer(uint16_t *data){ //0 on success, 1 on failure
 }
 void update_key_state(uint16_t data){
 
-    if(data > 256 && data < 513){ //release codes should be exactly 256 above their press down counterparts
-        if(data == F0_OFFSET+CAPSLOCK_KEY){
-            key_state[CAPSLOCK_KEY] = !key_state[CAPSLOCK_KEY];
-        }
-        key_state[data-256]=0;
+    if(data > F0_OFFSET && data < PRINTSCREEN_PRESS){ //release codes should be exactly 256 above their press down counterparts
+        key_state[data-F0_OFFSET]=0;
     }
     else{
         key_state[data]=1; //don't really care about prntscrn or pause right now
+        if(data == CAPSLOCK_KEY){
+            capslock_on=!capslock_on;
+        }
     }
     return;
 }
@@ -203,7 +203,7 @@ char scancode_to_char(uint16_t keynum){
     }
     char keyletter;
     _Bool shiftOn = key_state[LEFT_SHIFT] || key_state[RIGHT_SHIFT_KEY];
-    if (shiftOn ^ key_state[CAPSLOCK_KEY]){
+    if (shiftOn ^ capslock_on){
         keyletter = shift_ascii_map[keynum];
         return keyletter;
     }

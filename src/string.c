@@ -1,5 +1,5 @@
 #include <stddef.h>
-
+#include <stdint.h>
 size_t strlen(const char* str) 
 {
 	size_t len = 0;
@@ -81,4 +81,11 @@ int str_to_int(char* val){
     return_val +=(val[i]-'0');
   }
   return return_val;
+}
+uint64_t merge_bytes(uint8_t* bytes, int length){
+    uint64_t sum = 0;
+    for(int i=0; i<length; i++){
+        sum |= ((uint64_t)bytes[i])<<(8*i);
+    }
+    return sum;
 }
