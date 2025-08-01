@@ -11,14 +11,15 @@
 #include "printf.h"
 #include "kmalloc.h"
 #include "diskreader.h"
+#include "writingmode.h"
 
 
 void kernel_main(unsigned long magic, unsigned long mb_info_ptr)
 {
 	if(magic == 0x2BADB002){ //signifies multiboot
-		heap_end = (void*)mb_info_ptr;
+		heap_start = (void*)mb_info_ptr;
 	}
-	heap_start= (void*)ALIGN16((uint64_t) &_end);
+	heap_end= (void*)ALIGN16((uint64_t) &_end);
 	/* Initialize terminal interface */
 	set_hertz(1000);
 	terminal_initialize();
@@ -26,6 +27,7 @@ void kernel_main(unsigned long magic, unsigned long mb_info_ptr)
 	initGdt();
 	PIC_remap(0x20, 0x28);
 	initIdt();
+	printf("HEAP BOUNDS: %p, %p\n", heap_start, heap_end);
 	disable_translation();
 	switch_scancode_set(2);
 	display_time();

@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "pic.h"
 #include "string.h"
+#include "writingmode.h"
 #include "inputhandler.h"
 _Bool key_state[KEYBOARD_SIZE] = {0};
 char ascii_map[ASCII_MAP_SIZE] = {[A_KEY]='a',[B_KEY]='b',[C_KEY]='c',[D_KEY]='d',[E_KEY]='e',
@@ -197,18 +198,25 @@ void update_key_state(uint16_t data){
     }
     return;
 }
-char scancode_to_char(uint16_t keynum){
+KeyEvent scancode_to_char(uint16_t keynum){
+    KeyEvent key = {0};
     if(!key_state[keynum] || keynum >= ASCII_MAP_SIZE){
-        return '\0';
+        return key;
     }
     char keyletter;
     _Bool shiftOn = key_state[LEFT_SHIFT] || key_state[RIGHT_SHIFT_KEY];
+    if(shiftOn) key.shift=1;
+    if(key_state[LEFT_ALT]) key.alt=1;
+    if(key_state[LEFT_CTRL]) key.ctrl=1;
+    key.scancode=keynum;
     if (shiftOn ^ capslock_on){
         keyletter = shift_ascii_map[keynum];
-        return keyletter;
+        key.ascii=keyletter;
+        return key;
     }
     keyletter = ascii_map[keynum];
-    return keyletter;
+    key.ascii=keyletter;
+    return key;
     
 }
 void add_to_input_buffer(char newinput){
@@ -229,24 +237,15 @@ void clear_input_buffer(){
     input_len=0;
 }
 void screen_writer(){
-    is_input_from_user=1;
+    KeyEvent key = {0};
+    if(get_keyevent(&key)) keyparse(key);
+}
+_Bool get_keyevent(KeyEvent *event){
     uint16_t data;
     if(read_from_buffer(&data)){ //returns if no new characters
-        return;
-    }
-    if(data == BACKSPACE_KEY){
-        terminal_backspace();
-        remove_from_input_buffer();
-        return;
+        return 0;
     }
     update_key_state(data);
-    char key = scancode_to_char(data);
-    if(key == '\0') return;
-    if(key == '\n'){
-        terminal_putchar('\n');
-        parse_and_run();
-        return;
-    }
-        terminal_putchar(key);
-        add_to_input_buffer(key);
+    *event = scancode_to_char(data);
+    return 1;
 }

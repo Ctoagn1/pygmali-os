@@ -89,3 +89,26 @@ uint64_t merge_bytes(uint8_t* bytes, int length){
     }
     return sum;
 }
+int
+strncmp(const char *s1, const char *s2, register size_t n)
+{
+  register unsigned char u1, u2;
+
+  while (n-- > 0)
+    {
+      u1 = (unsigned char) *s1++;
+      u2 = (unsigned char) *s2++;
+      if (u1 != u2)
+	return u1 - u2;
+      if (u1 == '\0')
+	return 0;
+    }
+  return 0;
+}
+void to_uppercase(char* s) {
+    for (; *s; s++) {
+        if (*s >= 'a' && *s <= 'z') {
+            *s = *s - ('a' - 'A');
+        }
+    }
+}

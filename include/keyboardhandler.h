@@ -99,17 +99,26 @@
 #define KEYBOARD_COMMAND 0x64
 #include <stdint.h>
 
-
+typedef struct{
+    uint8_t scancode;
+    char ascii;
+    _Bool fn;
+    _Bool shift;
+    _Bool ctrl;
+    _Bool alt;
+    _Bool special;
+}KeyEvent;
 void write_to_buffer_wrapper();
 _Bool read_from_buffer(uint16_t *data);
 uint8_t switch_scancode_set(uint8_t set);
 void update_key_state(uint16_t data);
-char scancode_to_char(uint16_t keynum);
+KeyEvent scancode_to_char(uint16_t keynum);
 void screen_writer();
 void add_to_input_buffer(char newinput);
 void remove_from_input_buffer();
 void clear_input_buffer();
 void disable_translation();
+_Bool get_keyevent(KeyEvent *event);
 extern char input_buffer[INPUT_BUFFER_SIZE];
 extern _Bool key_state[KEYBOARD_SIZE];
 extern char ascii_map[ASCII_MAP_SIZE];

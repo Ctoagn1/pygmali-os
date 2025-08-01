@@ -8,6 +8,7 @@
 #include "io.h"
 #include "keyboardhandler.h"
 #include "inputhandler.h"
+#include "writingmode.h"
 
 #define VGA_WIDTH   80
 #define VGA_HEIGHT  25
@@ -81,13 +82,6 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y)
 	const size_t index = y * VGA_WIDTH + x;
 	terminal_buffer[index] = vga_entry(c, color);
 }
-void terminal_shell_set(){
-	terminal_column=0;
-	terminal_row=VGA_HEIGHT-1;
-	terminal_writestring("> ");
-	input_start_column=terminal_column-1;
-	input_start_row= terminal_row;
-}
 void terminal_putchar(char c) 
 {
     if (c == '\n'){
@@ -105,39 +99,6 @@ void terminal_putchar(char c)
 	}
 	update_cursor(terminal_column, terminal_row);
 }
-void terminal_backspace(){
-	if(terminal_row == input_start_row && terminal_column == input_start_column+1){
-		return;
-	}
-	/*if(terminal_column == 0){ //this logic isn't really necessary for shell mode, but eh I already wrote it
-		if(terminal_row == 0){
-			return;
-		}
-		else{
-			terminal_row--;
-			terminal_column=VGA_WIDTH-1;
-			while(terminal_getcharat(terminal_column, terminal_row) == 0 && terminal_column !=nn 0)
-				terminal_column--;
-			if(terminal_getcharat(terminal_column, terminal_row) != 0)
-				terminal_column++;
-			update_cursor(terminal_column, terminal_row);
-			return;
-		} */ //for non-shell mode, maybe editing files?
-	if(terminal_column==0 && terminal_row==(VGA_HEIGHT-1)){
-		memmove(&terminal_buffer[VGA_WIDTH], &terminal_buffer[0], VGA_WIDTH*(VGA_HEIGHT-1)*sizeof(terminal_buffer[0])); //shift text down
-		memmove(&terminal_buffer[0], &scroll_buffer[0], VGA_WIDTH*sizeof(terminal_buffer[0])); // load text from buffer
-		memmove(&scroll_buffer[0], &scroll_buffer[VGA_WIDTH], (EXTRA_TEXT_BUFFER_SIZE-VGA_WIDTH)*sizeof(terminal_buffer[0])); //shift buffer
-		terminal_column = VGA_WIDTH-1;
-		input_start_row++;
-		
-	}
-	else{
-		terminal_column--;
-	}
-	terminal_putentryat('\0', terminal_color, terminal_column, terminal_row);
-	update_cursor(terminal_column, terminal_row);
-	return;
-}
 
 unsigned char terminal_getcharat(size_t terminal_column, size_t terminal_row){
 	return (terminal_buffer[terminal_row*VGA_WIDTH+terminal_column] & 0xFF);
@@ -148,25 +109,6 @@ void terminal_write(const char* data, size_t size)
 	for (size_t i = 0; i < size; i++)
 		terminal_putchar(data[i]);
 }
-void scroll(){
-	if(input_start_row==0){
-		terminal_column=0;
-		terminal_row=VGA_HEIGHT-1;
-		for(uint8_t i=0; i<VGA_WIDTH; i++){
-			terminal_putentryat('\0', terminal_color, i, terminal_row);
-		}
-		return;
-	}
-	memmove(&scroll_buffer[VGA_WIDTH], &scroll_buffer[0],(EXTRA_TEXT_BUFFER_SIZE-VGA_WIDTH)*sizeof(scroll_buffer[0])); //move buffer up
-	memmove(&scroll_buffer[0], &terminal_buffer[0], VGA_WIDTH * sizeof(terminal_buffer[0])); //move text into buffer
-	memmove(&terminal_buffer[0], &terminal_buffer[VGA_WIDTH], VGA_WIDTH*(VGA_HEIGHT-1)*sizeof(terminal_buffer[0])); //move text up
-    for (size_t x = 0; x < VGA_WIDTH; x++) {
-        terminal_buffer[(VGA_HEIGHT-1)*VGA_WIDTH+x] = vga_entry('\0', terminal_color);
-    } 
-	input_start_row--;
-	terminal_row=VGA_HEIGHT-1;
-}
-
 void terminal_writestring(const char* data) 
 {
 	terminal_write(data, strlen(data));
