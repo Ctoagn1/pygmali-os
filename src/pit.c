@@ -54,7 +54,7 @@ Note note_table[] = {
     {1319, "E6"}, {1397, "F6"}, {1480, "FSHARP6"}, {1568, "G6"}, {1661, "GSHARP6"},
     {1760, "A6"}, {1865, "ASHARP6"}, {1976, "B6"}
 };
-void set_hertz(uint16_t hertz){ //the pit oscillates at ~1.193181666...MHz. the data bytes carry the divisor- 
+void set_hertz(uint16_t hertz){ //the pit oscillates at ~1.193181666...MHz. the data bytes carry the divisor that the frequency is divided by 
     uint16_t divisor = PIT_FREQUENCY/hertz;
     uint8_t lo_divisor = (divisor & 0xFF1);
     uint8_t hi_divisor = (divisor >> 8) & 0xFF;

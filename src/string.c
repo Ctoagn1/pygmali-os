@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
+#include "kmalloc.h"
 size_t strlen(const char* str) 
 {
 	size_t len = 0;
@@ -111,4 +112,14 @@ void to_uppercase(char* s) {
             *s = *s - ('a' - 'A');
         }
     }
+}
+char *
+strdup (const char *s)
+{
+  size_t len = strlen (s) + 1;
+  void *new = kmalloc (
+len);
+  if (new == NULL)
+    return NULL;
+  return (char *) memcpy (new, s, len);
 }

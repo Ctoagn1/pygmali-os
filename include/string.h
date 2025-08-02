@@ -17,3 +17,4 @@ void to_uppercase(char* s);
 int strncmp(const char *s1, const char *s2, register size_t n);
 size_t STRLEN (const char *str);
 #endif
+char *strdup (const char *s);

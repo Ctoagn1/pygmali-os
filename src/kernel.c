@@ -12,6 +12,7 @@
 #include "kmalloc.h"
 #include "diskreader.h"
 #include "writingmode.h"
+#include "fatparser.h"
 
 
 void kernel_main(unsigned long magic, unsigned long mb_info_ptr)
@@ -23,6 +24,8 @@ void kernel_main(unsigned long magic, unsigned long mb_info_ptr)
 	/* Initialize terminal interface */
 	set_hertz(1000);
 	terminal_initialize();
+	scan_mbr();
+	read_boot_record();
 	read_startup_time();
 	initGdt();
 	PIC_remap(0x20, 0x28);

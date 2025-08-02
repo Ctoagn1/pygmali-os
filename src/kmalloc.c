@@ -53,7 +53,7 @@ void* kmalloc(size_t size){
     return (void*)(new_block+1);
 }
 void kfree(void* to_be_freed){
-    if(!to_be_freed || !(to_be_freed>=heap_start && to_be_freed<=heap_end)){
+    if(!to_be_freed || ((char*)to_be_freed<(char*)heap_start || (char*)to_be_freed>(char*)heap_end)){
         return;
     }
     block_header* header = ((block_header*)to_be_freed)-1;

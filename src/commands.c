@@ -6,7 +6,7 @@
 #include "rtc.h"
 #include "fatparser.h"
 void cmd_echo(int argc, char** argv){
-    for(int i=1; i<=argc; i++){
+    for(int i=1; i<argc; i++){
         terminal_writestring(argv[i]);
         terminal_putchar(' ');
     }
@@ -14,11 +14,11 @@ void cmd_echo(int argc, char** argv){
 }
 
 void cmd_help(int argc, char** argv){
-    terminal_writestring("Commands-\necho <what you want to repeat>, help, play <note, C1-B6, accidentals must be written as note-SHARP-octave, like ASHARP4> <duration in ms, cap is 10000\n");
+    terminal_writestring("Commands- echo <word>, ls <optional directory>, pwd, cd <directory>, play <note> <duration>, time, clear, help <enter a command here for info>\n");
 }
 void cmd_play_note(int argc, char** argv){
     if(argc < 3){
-        printf("Usage: play <note> <duration>\n");
+        printf("Usage: play <note, accidentals written like ASHARP4> <duration in ms>\n");
         return;
     }
     _Bool valid_note = 0;
@@ -48,19 +48,20 @@ void cmd_time(int argc, char** argv){
     display_time();
 }
 void cmd_ls(int argc, char** argv){
-    char* filepath = argv[1];
-    filepath = append_path(filepath);
-    int cluster = file_path_destination(filepath);
+    char* filepath = strdup(argv[1]);
+    if(argc<2) filepath="";
+    char* full_path = append_path(filepath);
+    kfree(filepath);
+    int cluster = file_path_destination(full_path);
+    if(cluster==-1){
+        printf("Directory \"%s\" not found.\n", full_path);
+        kfree(full_path);
+        return;
+    }
     DirectoryListing dir_contents = directory_parse(cluster);
     char* list_of_names = names_from_directory(dir_contents);
-    int length = strlen(list_of_names);
-    for(int i=0; i<length/11; i++){
-        for(int j=0; j<11; j++){
-            if(j==9) terminal_putchar('.');
-            if(list_of_names[i*11+j]!=' ') terminal_putchar(list_of_names[i*11+j]);
-        }
-        terminal_putchar('\n');
-    }
+    printf("%s", list_of_names);
+    kfree(filepath);
     kfree(dir_contents.entries);
     kfree(list_of_names);
 }
@@ -73,18 +74,17 @@ void cmd_cd(int argc, char** argv){
         return;
     }
     char* full_path=append_path(argv[1]);
-    normalize_path(full_path);
     if(!full_path) return;
+    normalize_path(full_path);
     if(file_path_destination(full_path)!=-1){
         int length=strlen(full_path);
-        if(full_path[length-1]=='/')  full_path[length-1]='\0';
-        if(working_dir) kfree(working_dir);
+        if(full_path[length-1]=='/' && length!=1)  full_path[length-1]='\0';
         char* old = working_dir;
         working_dir = full_path;
         if (old) kfree(old);
     }
     else{
+        printf("Directory \"%s\" not found.\n", full_path);
         kfree(full_path);
-        printf("Directory not found.\n");
     }
 }

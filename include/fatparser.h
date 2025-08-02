@@ -5,7 +5,7 @@
 #define FAT_NAME_LENGTH 11
 extern char* working_dir;
 typedef struct{
-    char name[11];
+    unsigned char name[11];
     uint8_t attr;
     uint8_t nt_reserved;
     uint8_t creation_time;
@@ -27,6 +27,7 @@ typedef struct{
 
 uint32_t sector_of_cluster(int clusternum);
 int get_from_fat(int cluster_num);
+void read_boot_record();
 DirectoryListing directory_parse(int cluster_num);
 char* filename_to_plaintext(char filename[11]);
 char* plaintext_to_filename(char* filename);

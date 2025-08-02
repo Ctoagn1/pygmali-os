@@ -16,13 +16,14 @@
 #define GPT_PARTITION_ENTRY_OFFSET 0x48
 #define GPT_PARTITION_NUM_OFFSET 0x50
 #define GPT_IDENTIFIER_OFFSET 0x38
+#define GPT_PARTITION_ENTRY_LEN 128
 #define GPT_START_LBA 0x20
 #define GPT_END_LBA 0x28
-#define RAW_DISK_OVERRIDE
 //uses 28 bit, bytes 3,4,5, lower nibble of 6
 #include "io.h"
 #include "tty.h"
 #include "string.h"
+#include "printf.h"
 uint16_t diskinfo[256]={0};//identify returns 512 bytes (or 256 words)
 uint16_t sectorinfo[256]={0};//identify returns 512 bytes (or 256 words)
 uint32_t partition_start=0;
@@ -31,6 +32,8 @@ uint32_t bus_select = PRIMARY_BUS;
 int sector_space=1;
 _Bool startup_read=1;
 _Bool is_slave_drive=0;
+char gpt_identifier[37]={0};//gpt identifier is 72 bytes of 2-byte characters, +1 for null terminator
+
 
 void mega_wait(){ //disk can take 400ns, ~15 io_waits
     for(int i=0; i<15; i++){
@@ -114,23 +117,29 @@ void scan_gpt(){
     uint32_t num_of_partitions;
     uint8_t gpt[512];
     read_sector(1, gpt);
-    char gpt_identifier[36]={0};//gpt identifier is 72 bytes
     if(gpt[0]!=0x45 || gpt[1]!=0x46 || gpt[2]!=0x49 || gpt[3]!=0x20 || gpt[4]!=0x50 || gpt[5]!=0x41 || gpt[6]!=0x52 || gpt[7]!=0x54){ //8 byte GPT signature
         return;
     }
     lba_of_partition_entries=merge_bytes(&gpt[GPT_PARTITION_ENTRY_OFFSET], 8);
     num_of_partitions=merge_bytes(&gpt[GPT_PARTITION_NUM_OFFSET], 4);
+    int iteration = 0;
     for(int i=0; i<num_of_partitions; i++){
-        read_sector(lba_of_partition_entries+i, gpt);
+        read_sector(lba_of_partition_entries+(i/4), gpt);
+        int len=0;
         for(int j=0; j<sizeof(gpt_identifier); j++){
-            gpt_identifier[j]=gpt[GPT_IDENTIFIER_OFFSET+j*2]; //uses UTF-16, so must check every 2nd character for ASCII
+            gpt_identifier[j]=gpt[iteration*GPT_PARTITION_ENTRY_LEN+GPT_IDENTIFIER_OFFSET+j*2]; //uses UTF-16, so must check every 2nd character for ASCII
+            if(gpt[iteration*GPT_PARTITION_ENTRY_LEN+GPT_IDENTIFIER_OFFSET+j*2]==0 && gpt[iteration*GPT_PARTITION_ENTRY_LEN+GPT_IDENTIFIER_OFFSET+j*2+1]==0)break;
+            len++;
         }
+        gpt_identifier[len]='\0';
         if(strcmp(gpt_identifier, "PYGMALI_OS")==0){
-            partition_start=merge_bytes(&gpt[GPT_START_LBA], 8);
-            partition_end=merge_bytes(&gpt[GPT_END_LBA], 8);
+            partition_start=merge_bytes(&gpt[GPT_START_LBA+iteration*GPT_PARTITION_ENTRY_LEN], 8);
+            partition_end=merge_bytes(&gpt[GPT_END_LBA+iteration*GPT_PARTITION_ENTRY_LEN], 8);
             startup_read=0;
             return;
         }
+        iteration++;
+        iteration %= 4;
     }
     startup_read=0;
 }
@@ -144,6 +153,7 @@ void scan_mbr(){
     read_sector(0, mbr);
     if(mbr[PARTITION_TABLE_OFFSET+4]==0xEE){ //represents protective GPT mbr
         scan_gpt();
+        printf("PARTITION: %s LBA RANGE: %d, %d\n", gpt_identifier, partition_start, partition_end);
         return;
     }
     return; //TODO- update this logic to read fs data instead of just checking if bootable, for now don't use it
