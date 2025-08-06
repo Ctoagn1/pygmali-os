@@ -3,6 +3,7 @@
 #include "kmalloc.h"
 #include "fatparser.h"
 #include "printf.h"
+#include "pit.h"
 #define FAT_NAME_LENGTH 11
 #define MAX_PATH_DEPTH 64
 uint16_t bytes_per_sector;
@@ -13,9 +14,17 @@ uint32_t sectors_per_fat;
 uint32_t root_cluster;
 uint64_t first_data_sector;
 char* working_dir="/";
-
-
-
+typedef struct{
+    uint32_t cluster;
+    uint32_t value;
+} fat_entry;
+typedef struct{
+    char* filename;
+    uint32_t dir_cluster;
+} new_file_entry;
+fat_entry* fat_cache = NULL;
+int fat_cache_count=0;
+int iteration = 0;
 uint32_t sector_of_cluster(int clusternum){
     return((clusternum-2)*sectors_per_cluster)+first_data_sector; //clusters 0 and 1 are reserved, so -2
 }
@@ -41,63 +50,135 @@ int get_from_fat(int cluster_num){
     kfree(fat_table);
     return dest_cluster;
 }
+int modify_fat(uint32_t cluster, uint32_t value){
+    unsigned char* fat_table = kmalloc(512);
+    if(!fat_table) return -1;
+    int fat_offset=cluster*4;
+    int fat_sector = partition_start+reserved_sectors +(fat_offset/512);
+    int entry_offset =fat_offset%512;
+    read_sector(fat_sector, fat_table);
+    fat_table[entry_offset]=((value) & 0xFF);
+    fat_table[entry_offset+1]=((value>>8) & 0xFF);
+    fat_table[entry_offset+2]=((value>>16) & 0xFF);
+    fat_table[entry_offset+3]=((value>>24) & 0xFF);
+    for(int i=0; i<num_of_fats; i++){
+        write_sector(fat_sector+i*sectors_per_fat, fat_table);
+    }
+    kfree(fat_table);
+    return 0;
+}
+int create_file(char* filename){
+    File_Location location = get_file_location(filename);
+    if(location.byte_offset==-1){
+        return 1;
+    }
+}
+
 DirectoryListing directory_parse(int cluster_num){ //caller must free result.entries
     DirectoryListing result = {0};
+    int size=0;
     uint8_t* cluster = kmalloc(sectors_per_cluster*512);
     if(!cluster) return result;
     int sector_num=sector_of_cluster(cluster_num);
     int entries_per_cluster = sectors_per_cluster*512/sizeof(Cluster_Entry);
-    while(cluster_num<0x0FFFFFF8){ //signals end of dir/file
+    while(cluster_num<0x0FFFFFF8 && cluster_num>=2){ //signals end of dir/file
         sector_num=sector_of_cluster(cluster_num);
         for(int i=0; i<sectors_per_cluster; i++){
             read_sector(sector_num+i, &cluster[512*i]);
         }
-        result.entries = krealloc(result.entries, (result.count + entries_per_cluster)*sizeof(Cluster_Entry));
-        memcpy(&result.entries[result.count], cluster, entries_per_cluster*sizeof(Cluster_Entry));
+        size++;
+        result.entries = krealloc(result.entries, size*sectors_per_cluster*512);
+        if(!result.entries) return result;
+        int i=0;
+        while(cluster[i]!='\0' && i<((entries_per_cluster)*sizeof(Cluster_Entry))){
+            memcpy(&result.entries[result.count], &cluster[i],sizeof(Cluster_Entry));
+            result.count++;
+            i+=sizeof(Cluster_Entry);
+        }
         cluster_num=get_from_fat(cluster_num);
-        result.count += entries_per_cluster;
     }
     kfree(cluster);
     return result;
 }
-char* filename_to_plaintext(char filename[11]){ //caller must free file_plaintext
+char* filename_to_plaintext(unsigned char *filename){ //caller must free file_plaintext
+    to_uppercase(filename);
     char* file_plaintext = kmalloc(FAT_NAME_LENGTH+2); //+2 for null terminator and period
+    if(!file_plaintext) return NULL;
     memset(file_plaintext, 0, FAT_NAME_LENGTH+2);
     int name_len=0;
     for(int i=0; i<8; i++){
         if(filename[i]!=' '){
+            file_plaintext[name_len]=filename[i];
             name_len++;
-            file_plaintext[name_len-1]=filename[i];
         }
     }
     if(filename[8]!=' ' || filename[9]!=' ' || filename[10]!=' '){
+        file_plaintext[name_len]='.';
         name_len++;
-        file_plaintext[name_len-1]='.';
-    }
-    for(int i=8; i<11; i++){
-        if(filename[i]!=' '){
-            name_len++;
-            file_plaintext[name_len-1]=filename[i];
+        for(int i=8; i<11; i++){
+            if(filename[i]!=' '){
+                file_plaintext[name_len]=filename[i];
+                name_len++;
+            }
         }
     }
     return file_plaintext;
 }
-char* plaintext_to_filename(char* filename){ //caller must free file_fatname
-    to_uppercase(filename);
-    if(strlen(filename)>13) return NULL;
+char* file_contents(char* filename){
+    int clusternum = 0;
+    int bytes_written = 0;
+    File_Location location = get_file_location(filename);
+    char* contents_buffer = NULL;
+    if(location.byte_offset==-1){
+        return NULL;
+    }
+    uint8_t *file_sector = kmalloc(512);
+    if(!file_sector) return NULL;
+    read_sector(location.lba, file_sector);
+    Cluster_Entry* file_entry = (Cluster_Entry*)&file_sector[location.byte_offset];
+    if((file_entry->attr&0x10) == 0x10){
+        return NULL;
+    }
+    char* sectordata = kmalloc(512);
+    uint32_t current_cluster = (uint32_t)file_entry->low_cluster_number+((uint32_t)file_entry->high_cluster_number<<16);
+    while(current_cluster>=2 && current_cluster<0x0FFFFFF8){
+        contents_buffer=krealloc(contents_buffer, sectors_per_cluster*512*(1+clusternum));
+        if(!contents_buffer) return NULL;
+        int current_sector = sector_of_cluster(current_cluster);
+        for(int i=0; i<sectors_per_cluster; i++){
+            read_sector(current_sector+i, sectordata);
+            for(int j=0; j<512; j++){
+                if(sectordata[j]=='\0') continue;
+                bytes_written++;
+                contents_buffer[(clusternum*sectors_per_cluster*512)+(i*512)+j]=sectordata[j];
+            }
+        }
+        clusternum++;
+        current_cluster=get_from_fat(current_cluster);
+    }
+    kfree(sectordata);
+    contents_buffer[bytes_written]='\0';
+    return contents_buffer;
+}
+unsigned char* plaintext_to_filename(char* filename){ //caller must free file_fatname
+    if(strlen(filename)>12){
+        return NULL;
+    }
     if(strlen(filename)==0) return NULL;
-    char* file_fatname = kmalloc(FAT_NAME_LENGTH);
+    to_uppercase(filename);
+    unsigned char* file_fatname = kmalloc(FAT_NAME_LENGTH);
+    if(!file_fatname) return NULL;
     memset(file_fatname, ' ', FAT_NAME_LENGTH);
     int extension_start=0;
     _Bool period_exists=0;
-    _Bool valid_fat=1;
+    _Bool valid_fat=0;
     for(int i=0; i<strlen(filename); i++){
         if(filename[i]=='.' && period_exists) return NULL;
         if(filename[i]=='.'){
             period_exists=1;
             extension_start=i+1;
         }
-        if(!((filename[i]>= 'A' && filename[i]<='Z') || (filename[i]>='0' && filename[i]<='9') || filename[i]=='_' || filename[i]=='.')) valid_fat=0;
+        if(!(filename[i]=='.' || filename[i]=='/' || filename[i]=='\\')) valid_fat=1;
     }
     if (valid_fat==0) return NULL;
     if(extension_start>9) return NULL;
@@ -109,8 +190,10 @@ char* plaintext_to_filename(char* filename){ //caller must free file_fatname
         }
         file_fatname[i]=filename[i];
     } 
-    for(int i=0; i<3; i++){
-        if(filename[extension_start+i]!='\0') file_fatname[8+i]=filename[extension_start+i];
+    if (period_exists) {
+        for(int i=0; i<3; i++){
+            if(filename[extension_start+i]!='\0') file_fatname[8+i]=filename[extension_start+i];
+        }
     }
     return file_fatname;
 }
@@ -120,12 +203,14 @@ char* names_from_directory(DirectoryListing list){ //caller must free list
     int total_length=0;
     int start_pos=0;
     for(int i=0; i<list.count; i++){
-        if(list.entries[i].name[0]==0) break;
+        if(list.entries[i].name[0]==0) continue;
         if(list.entries[i].name[0]==0xE5) continue; //skip over deleted files
         if((list.entries[i].attr & 0b00001111) == 0b00001111) continue; //skip over long file names
         char* plain_filename = filename_to_plaintext(list.entries[i].name);
+        if(!plain_filename) return NULL;
         total_length+=(strlen(plain_filename)+1);
         name_list = krealloc(name_list, total_length);
+        if(!name_list) return NULL;
         memcpy(&name_list[start_pos],plain_filename, strlen(plain_filename));
         name_list[total_length-1]=' ';
         start_pos=total_length;
@@ -135,7 +220,9 @@ char* names_from_directory(DirectoryListing list){ //caller must free list
     return name_list;
 }
 int file_path_destination(char* input_dir){
-    if(input_dir[0] !='/') return -1; //absolute paths only
+    if(input_dir[0] !='/'){
+        return -1; //absolute paths only
+    }
     int current_cluster=root_cluster;
     int length = strlen(input_dir);
     int current_location=1;
@@ -148,8 +235,10 @@ int file_path_destination(char* input_dir){
         while(input_dir[current_location]!='/' && current_location<length){
             nextdir[location_in_dirname]=input_dir[current_location];
             location_in_dirname++;
+            if(location_in_dirname>12){
+                return -1;
+            }
             current_location++;
-            if(location_in_dirname >= 12) return -1; 
         }
         if(input_dir[current_location] == '/') current_location++;
         if(nextdir[0]=='\0'){
@@ -167,10 +256,15 @@ int file_path_destination(char* input_dir){
             memset(nextdir, 0, sizeof(nextdir));
             continue;
         }
-        if(stack_top>= MAX_PATH_DEPTH) return -1;
+        if(stack_top>= MAX_PATH_DEPTH){
+            return -1;
+        }
         cluster_stack[stack_top++]=current_cluster;
-        DirectoryListing current_dir_results= directory_parse(current_cluster);
-        char* file_entry = plaintext_to_filename(nextdir);
+        DirectoryListing current_dir_results= directory_parse(current_cluster); 
+        unsigned char* file_entry = plaintext_to_filename(nextdir);
+        if(!file_entry){
+            return -1;
+        }
         memset(nextdir, 0, sizeof(nextdir));
         current_cluster = -1;
         for(int i=0; i<current_dir_results.count; i++){
@@ -180,7 +274,9 @@ int file_path_destination(char* input_dir){
         }
         kfree(file_entry);
         kfree(current_dir_results.entries);
-        if(current_cluster==-1) return -1;
+        if(current_cluster==-1){
+            return -1;
+        }
     }
     return current_cluster;
 }
@@ -190,13 +286,177 @@ char* append_path(char* filepath){ //caller must free
     }
     int wd_len=strlen(working_dir);
     int fp_len=strlen(filepath);
+    if (fp_len==0) return strdup(working_dir);
     _Bool add_slash=!(working_dir[wd_len-1]=='/');
     char* new_filepath = kmalloc(fp_len+wd_len+add_slash+1);//1 for null terminator
+    if(!new_filepath) return NULL;
     memcpy(new_filepath, working_dir, wd_len);
     if(add_slash)new_filepath[wd_len]='/';
     memcpy(new_filepath+wd_len+add_slash, filepath, fp_len);
     new_filepath[wd_len+add_slash+fp_len]='\0';
     return new_filepath;
+}
+File_Location get_file_location(char* filename){
+    int slash=-1;
+    File_Location not_found = {-1, -1, -1};
+    int len = strlen(filename);
+    char* filepath = NULL;
+    _Bool match = 0;
+    int lba_offset=0;
+    int byte_offset=0;
+    int cluster=0;
+    File_Location filedest= {0};
+    char* name=NULL;
+    for(int i=0; i<len; i++){
+        if(filename[i]=='/') slash=i;
+    }
+    if(slash>=0){
+        filepath = kmalloc(slash+1);
+        name = kmalloc(len+1-slash); 
+        memcpy(filepath, filename, slash);
+        filepath[slash]='\0';
+        memcpy(name, &filename[slash+1], len-(slash+1));
+        name[len-(slash+1)]='\0';
+    }
+    else{
+        filepath = kmalloc(1);
+        name = kmalloc(len+1);
+        memcpy(name, filename, len);
+        filepath[0]='\0';
+        name[len]='\0';
+    }
+    char* full_path=append_path(filepath);
+    if(!full_path){
+        return not_found;
+    }
+    cluster = file_path_destination(full_path);
+    if(cluster==-1){
+        kfree(full_path);
+        return not_found;
+    }
+    DirectoryListing dirlist = directory_parse(cluster);
+    unsigned char* formatted_name = plaintext_to_filename(name);
+    if(!formatted_name){
+        kfree(full_path);
+        return not_found;
+    }
+    for(int i=0; i<dirlist.count; i++){
+        if(!dirlist.entries[i].name) continue;
+        if(!formatted_name) break;
+        if(strncmp(dirlist.entries[i].name, formatted_name, 11)==0){
+            match=1;
+            break;
+        }
+        byte_offset+=32;
+        if (byte_offset==512){
+            byte_offset=0;
+            lba_offset++;
+        }
+        if (lba_offset==sectors_per_cluster){
+            cluster=get_from_fat(cluster);
+            if(cluster<2 || cluster>= 0x0FFFFFF8) break;
+            lba_offset=0;
+        }
+    }
+    kfree(name);
+    kfree(dirlist.entries);
+    kfree(full_path);
+    kfree(formatted_name);
+    kfree(filepath);
+    filedest.lba = lba_offset+sector_of_cluster(cluster);
+    filedest.cluster = cluster;
+    filedest.byte_offset= byte_offset;
+    if (match==0) {
+        return not_found;
+    }
+    return filedest;
+}
+void add_to_fatcache(uint32_t cluster, uint32_t value){
+    fat_cache = krealloc(fat_cache, (fat_cache_count+1)*sizeof(fat_entry));
+    if(!fat_cache) return;
+    fat_cache[fat_cache_count].cluster=cluster;
+    fat_cache[fat_cache_count].value=value;
+    fat_cache_count++;
+}
+void flush_fatcache(){
+    for(int i=0; i<fat_cache_count; i++){
+        modify_fat(fat_cache[i].cluster, fat_cache[i].value);
+    }
+    kfree(fat_cache);
+    fat_cache=NULL;
+    fat_cache_count=0;
+}
+int delete_file(char* filename){
+    iteration++;
+    File_Location location = get_file_location(filename);
+    if(location.byte_offset==-1){
+        return 1;
+    }
+    uint8_t *file_sector = kmalloc(512);
+    if(!file_sector) return 1;
+    read_sector(location.lba, file_sector);
+    Cluster_Entry* file_entry = (Cluster_Entry*)&file_sector[location.byte_offset];
+    if(file_entry->name[0]=='.' && (file_entry->name[1]=='.' || file_entry->name[1]==' ')) return 1;
+    if(file_entry->attr == 0b00001111){
+        file_entry->name[0]=0xE5;
+        write_sector(location.lba, file_sector);
+        kfree(file_sector);
+        return 0;
+    }
+    uint8_t attr =file_entry->attr;
+    uint32_t cluster = (uint32_t)file_entry->low_cluster_number|((uint32_t)file_entry->high_cluster_number<<16);
+    if((attr & 0b00010000)!=0){ //recursive removal for directories
+        DirectoryListing list = directory_parse(cluster);
+        int namelen = strlen(filename);
+        for(int i=0; i<list.count; i++){
+            if(list.entries[i].name[0]==0x00||list.entries[i].name[0]==0xE5 || (list.entries[i].attr & 0x0F) == 0x0F) continue;
+            char* new_filename = filename_to_plaintext(list.entries[i].name);
+            if(!new_filename) continue;
+            if((strcmp(new_filename, ".")==0)||(strcmp(new_filename, "..")==0)){
+                kfree(new_filename);
+                continue;
+            }
+            int full_name_size = strlen(new_filename)+namelen+2;
+            char* full_name = kmalloc(full_name_size);
+            memset(full_name, 0, full_name_size);
+            if(!full_name){
+                kfree(new_filename);
+                kfree(file_sector);
+                iteration--;
+                return 1;
+            }
+            strcpy(full_name, filename);
+            strcat(full_name, "/");
+            strcat(full_name, new_filename);
+            kfree(new_filename);
+            delete_file(full_name);
+            kfree(full_name);
+        }
+        kfree(list.entries);
+    }
+    while(cluster >=2 && cluster<0x0FFFFFF8){
+        uint32_t next= get_from_fat(cluster);
+        add_to_fatcache(cluster, 0);
+        cluster=next;
+    }
+    file_sector[location.byte_offset]=0xE5; //signifies deleted file
+    write_sector(location.lba, file_sector);
+    kfree(file_sector);
+    printf("Deleted %s ", filename);
+    iteration--;
+    if(iteration==0) flush_fatcache();
+    return 0;
+}
+int check_attributes(char* filename){
+    File_Location location = get_file_location(filename);
+    if (location.byte_offset ==-1) return -1;
+    uint8_t *file_sector = kmalloc(512);
+    if(!file_sector) return -1;
+    read_sector(location.lba, file_sector);
+    Cluster_Entry* file_entry = (Cluster_Entry*)&file_sector[location.byte_offset];
+    int attribute =  file_entry->attr;
+    kfree(file_sector);
+    return attribute;
 }
 void normalize_path(char *path){
     to_uppercase(path);

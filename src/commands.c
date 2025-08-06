@@ -14,7 +14,7 @@ void cmd_echo(int argc, char** argv){
 }
 
 void cmd_help(int argc, char** argv){
-    terminal_writestring("Commands- echo <word>, ls <optional directory>, pwd, cd <directory>, play <note> <duration>, time, clear, help <enter a command here for info>\n");
+    terminal_writestring("Commands- echo <word>, ls <optional directory>, pwd, cd <directory>, cat <file>, play <note> <duration>, time, clear, help <enter a command here for info>\n");
 }
 void cmd_play_note(int argc, char** argv){
     if(argc < 3){
@@ -48,8 +48,10 @@ void cmd_time(int argc, char** argv){
     display_time();
 }
 void cmd_ls(int argc, char** argv){
-    char* filepath = strdup(argv[1]);
-    if(argc<2) filepath="";
+    char* filepath = NULL;
+    if(argc<2) filepath = strdup("");
+    else filepath = strdup(argv[1]);
+    if(!filepath) return;
     char* full_path = append_path(filepath);
     kfree(filepath);
     int cluster = file_path_destination(full_path);
@@ -60,8 +62,9 @@ void cmd_ls(int argc, char** argv){
     }
     DirectoryListing dir_contents = directory_parse(cluster);
     char* list_of_names = names_from_directory(dir_contents);
+    if(!list_of_names) return;
     printf("%s", list_of_names);
-    kfree(filepath);
+    kfree(full_path);
     kfree(dir_contents.entries);
     kfree(list_of_names);
 }
@@ -70,7 +73,7 @@ void cmd_pwd(int argc, char** argv){
 }
 void cmd_cd(int argc, char** argv){
     if(argc<2){
-        printf("Usage: cd <directory>\n");
+        printf("Usage: cd <directory>, changes working directory\n");
         return;
     }
     char* full_path=append_path(argv[1]);
@@ -87,4 +90,31 @@ void cmd_cd(int argc, char** argv){
         printf("Directory \"%s\" not found.\n", full_path);
         kfree(full_path);
     }
+}
+void cmd_rm(int argc, char** argv){
+    _Bool recursive=0;
+    if(argc<2 || (argc==2 && strcmp(argv[1], "-r")==0)){
+        printf("Usage: rm <file>, deletes target. Must use \"rm -r\" to delete directories.\n");
+        return;
+    }
+    if(strcmp(argv[1], "-r")==0) recursive=1;
+    if ((check_attributes(argv[argc-1]) & 0b10010000) == 0b00010000 && recursive==0){ //1 in 128 place to prevent -1 from registering as dir
+        printf("Use \"rm -r\" if you're sure you want to delete a directory.\n");
+        return;
+    }
+    if(delete_file(argv[argc-1])==1) printf("File \"%s\" not found.\n", argv[argc-1]);
+}
+void cmd_cat(int argc, char** argv){
+    if(argc<2){
+        printf("Usage: cat <file>, displays file contents to terminal.\n");
+        return;
+    }
+    char* file = file_contents(argv[1]);
+    if(!file){
+        printf("File \"%s\" not found or is a directory.\n", argv[1]);
+        return;
+    }
+    printf(file);
+    kfree(file);
+    
 }

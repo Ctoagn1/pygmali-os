@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "string.h"
+#include "printf.h"
 
 void *heap_start=NULL;
 void *heap_end=NULL;
@@ -22,6 +23,7 @@ void* kmalloc(size_t size){
         heap_base->size = size;
         heap_base->free = 0;
         heap_base->next = NULL;
+        //printf("Allocated %p ", heap_base+1);
         return (void*)(heap_base+1); //return space after header
     }
     while(current && !(current->free && current->size >= size)){
@@ -39,27 +41,32 @@ void* kmalloc(size_t size){
            current->size=size;
            current->next=split_block;
         }
+        //printf("Allocated %p ", current+1);
         return (void*)(current+1);
     }
     //create new block
+    if(prev==NULL)  return NULL;
     block_header* new_block = (block_header*)((char*)prev+sizeof(block_header)+prev->size); //pointer arithmetic is based off of data size so to add (size) bytes it is necessary to cast the pointer as a 1-byte data type
-    if((char*)new_block + sizeof(block_header)+size > heap_end){
+    if((uint8_t*)new_block + sizeof(block_header)+size > (uintptr_t)heap_end){
         return NULL; //cannot allocate further
     }
     new_block->size = size;
     new_block->free = 0;
     new_block->next = NULL;
     prev->next = new_block;
+    //printf("Allocated %p ", new_block+1);
     return (void*)(new_block+1);
 }
 void kfree(void* to_be_freed){
-    if(!to_be_freed || ((char*)to_be_freed<(char*)heap_start || (char*)to_be_freed>(char*)heap_end)){
+    if(!to_be_freed || ((char*)to_be_freed<(char*)heap_start || ((char*)to_be_freed)>((char*)heap_end)-sizeof(block_header))){
+        printf("INVALID FREE %p", to_be_freed);
         return;
     }
+    //printf("Freed %p ", to_be_freed);
     block_header* header = ((block_header*)to_be_freed)-1;
     header->free = 1;
     block_header* current=heap_base;
-    while(current && (current->next)){
+    while(current && current->next){;
         //merging
         if(current->free && current->next->free){
             current->size+=(current->next->size)+sizeof(block_header);
@@ -78,7 +85,7 @@ void* krealloc(void* ptr, size_t size){
         kfree(ptr);
         return NULL;
     }
-    block_header* header = (block_header*)ptr-1;
+    block_header* header = ((block_header*)ptr)-1;
     size=ALIGN4(size);
     if(header->size >= size){
         return ptr;

@@ -22,17 +22,27 @@ typedef struct{
 typedef struct{
     Cluster_Entry* entries;
     int count;
-} DirectoryListing;
+}__attribute__((packed)) DirectoryListing;
+
+typedef struct {
+    int lba;
+    int byte_offset;
+    int cluster;
+}__attribute__((packed)) File_Location;
 
 
 uint32_t sector_of_cluster(int clusternum);
+extern uint8_t num_of_fats;
 int get_from_fat(int cluster_num);
+int delete_file(char* filename);
 void read_boot_record();
 DirectoryListing directory_parse(int cluster_num);
-char* filename_to_plaintext(char filename[11]);
-char* plaintext_to_filename(char* filename);
+char* filename_to_plaintext(unsigned char *filename);
+unsigned char* plaintext_to_filename(char* filename);
+File_Location get_file_location(char* filename);
 char* names_from_directory(DirectoryListing list);
 int file_path_destination(char* input_dir);
+int check_attributes(char* filename);
 char* append_path(char* filepath);
 void normalize_path(char *path); 
-
+char* file_contents(char* filename);

@@ -12,8 +12,8 @@ OBJS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(C_SRCS)) $(OBJDIR)/boot.o $(OBJ
 KERNEL = pygmalios.kernel
 ISO_DIR = isodir
 
-CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -I$(INCDIR)
-LDFLAGS = -T linker.ld -ffreestanding -O2 -nostdlib -lgcc
+CFLAGS = -std=gnu99 -ffreestanding -O0 -Wall -Wextra -I$(INCDIR)
+LDFLAGS = -T linker.ld -ffreestanding -O0 -nostdlib -lgcc
 
 .PHONY: all clean iso run
 
@@ -47,7 +47,7 @@ iso: $(KERNEL)
 	$(GRUBMAKE) -o pygmalios.iso $(ISO_DIR)
 
 run : 
-	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -hda disk.img
+	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -drive file=disk.img,format=raw
 
 clean:
 	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pygmalios.iso

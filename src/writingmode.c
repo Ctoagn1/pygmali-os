@@ -43,7 +43,7 @@ void shell_backspace(){
 	return;
 }
 void shell_scroll(){
-	if(input_start_row==0){
+	if(input_start_row==0 && is_input_from_user){
 		terminal_column=0;
 		terminal_row=VGA_HEIGHT-1;
 		for(uint8_t i=0; i<VGA_WIDTH; i++){
@@ -85,7 +85,6 @@ void keyparse(KeyEvent key){
 		}
 	}
 }
-
 void shell_print(char c){
     if (c == '\n'){
         terminal_column = 0;

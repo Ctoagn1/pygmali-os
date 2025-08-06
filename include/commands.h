@@ -7,3 +7,5 @@ void cmd_time(int argc, char **argv);
 void cmd_ls(int argc, char** argv);
 void cmd_pwd(int argc, char** argv);
 void cmd_cd(int argc, char** argv);
+void cmd_rm(int argc, char** argv);
+void cmd_cat(int argc, char** argv);

@@ -23,6 +23,8 @@ Command commands[] = {
     {"pwd", cmd_pwd},
     {"ls", cmd_ls},
     {"cd", cmd_cd},
+    {"rm", cmd_rm},
+    {"cat", cmd_cat},
     {NULL, NULL} //signals end of list
 };
 
