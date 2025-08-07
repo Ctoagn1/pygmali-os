@@ -48,6 +48,7 @@ void* kmalloc(size_t size){
     if(prev==NULL)  return NULL;
     block_header* new_block = (block_header*)((char*)prev+sizeof(block_header)+prev->size); //pointer arithmetic is based off of data size so to add (size) bytes it is necessary to cast the pointer as a 1-byte data type
     if((uint8_t*)new_block + sizeof(block_header)+size > (uintptr_t)heap_end){
+        printf("FULL");
         return NULL; //cannot allocate further
     }
     new_block->size = size;

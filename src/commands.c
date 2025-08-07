@@ -103,6 +103,7 @@ void cmd_rm(int argc, char** argv){
         return;
     }
     if(delete_file(argv[argc-1])==1) printf("File \"%s\" not found.\n", argv[argc-1]);
+    else printf("Deleted %s ", argv[argc-1]);
 }
 void cmd_cat(int argc, char** argv){
     if(argc<2){
@@ -111,7 +112,7 @@ void cmd_cat(int argc, char** argv){
     }
     char* file = file_contents(argv[1]);
     if(!file){
-        printf("File \"%s\" not found or is a directory.\n", argv[1]);
+        printf("File \"%s\" not found, is a directory, or is too large.\n", argv[1]);
         return;
     }
     printf(file);

@@ -6,6 +6,8 @@ void PIC_sendEOI(uint8_t irq);
 void pic_disable(void);
 uint16_t pic_get_isr(void);
 uint16_t pic_get_irr(void);
+void disable_interrupts();
+void enable_interrupts();
 void IRQ_set_mask(uint8_t IRQline);
 void IRQ_clear_mask(uint8_t IRQline);
 #endif

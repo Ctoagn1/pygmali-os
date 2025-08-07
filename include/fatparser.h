@@ -30,6 +30,16 @@ typedef struct {
     int cluster;
 }__attribute__((packed)) File_Location;
 
+typedef struct{
+    uint32_t cluster;
+    uint32_t value;
+} fat_entry;
+
+typedef enum{
+    FIND_EXISTS,
+    FIND_NEW
+} LookupMode;
+
 
 uint32_t sector_of_cluster(int clusternum);
 extern uint8_t num_of_fats;
@@ -39,7 +49,7 @@ void read_boot_record();
 DirectoryListing directory_parse(int cluster_num);
 char* filename_to_plaintext(unsigned char *filename);
 unsigned char* plaintext_to_filename(char* filename);
-File_Location get_file_location(char* filename);
+File_Location get_file_location(char* filename, LookupMode mode);
 char* names_from_directory(DirectoryListing list);
 int file_path_destination(char* input_dir);
 int check_attributes(char* filename);

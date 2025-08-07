@@ -13,14 +13,20 @@
 #include "diskreader.h"
 #include "writingmode.h"
 #include "fatparser.h"
+#include "multiboot.h"
+#define HEAP_SIZE (32*1024*1024)
 
-
-void kernel_main(unsigned long magic, unsigned long mb_info_ptr)
+void kernel_main(multiboot_info_t* mbd, unsigned long magic)
 {
-	if(magic == 0x2BADB002){ //signifies multiboot
-		heap_start = (void*)mb_info_ptr;
-	}
-	heap_end= (void*)ALIGN16((uint64_t) &_end);
+	/*if(magic == MULTIBOOT_BOOTLOADER_MAGIC){ //checks if multiboot
+		if(!((mbd->flags&0b01000000)==0b01000000)){ //is memory map valid?
+			panic("MEMORY NOT FOUND");
+		}
+		for(int i=0; )
+	}*/
+
+	heap_start= (void*)ALIGN16((uint64_t) &_end);
+	heap_end=heap_start+HEAP_SIZE;
 	/* Initialize terminal interface */
 	set_hertz(1000);
 	terminal_initialize();
@@ -42,4 +48,9 @@ void kernel_main(unsigned long magic, unsigned long mb_info_ptr)
 		screen_writer();
 		msleep(10);
 	}
+}
+void panic(char *error){
+	printf("FATAL ERROR %s\n", error);
+
+	 __asm__ volatile("cli; hlt"); //disable interrupts, halt cpu function
 }

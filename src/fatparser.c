@@ -13,18 +13,8 @@ uint8_t num_of_fats;
 uint32_t sectors_per_fat;
 uint32_t root_cluster;
 uint64_t first_data_sector;
-char* working_dir="/";
-typedef struct{
-    uint32_t cluster;
-    uint32_t value;
-} fat_entry;
-typedef struct{
-    char* filename;
-    uint32_t dir_cluster;
-} new_file_entry;
-fat_entry* fat_cache = NULL;
-int fat_cache_count=0;
-int iteration = 0;
+char* working_dir;
+
 uint32_t sector_of_cluster(int clusternum){
     return((clusternum-2)*sectors_per_cluster)+first_data_sector; //clusters 0 and 1 are reserved, so -2
 }
@@ -38,23 +28,34 @@ void read_boot_record(){
     sectors_per_fat=merge_bytes(&boot_record[36], 4);
     root_cluster=merge_bytes(&boot_record[44], 4);
     first_data_sector=partition_start+reserved_sectors+num_of_fats*sectors_per_fat;
+    working_dir=kmalloc(1);
+    working_dir[0]='/';
 }
 int get_from_fat(int cluster_num){
+    if(cluster_num<2) return -1;
     unsigned char* fat_table = kmalloc(512);
     if(!fat_table) return -1;
     int fat_offset=cluster_num*4;
     int fat_sector = partition_start+reserved_sectors +(fat_offset/512);
+    if(fat_sector>=partition_start+reserved_sectors+sectors_per_fat){
+        return -1;
+    }
     int entry_offset =fat_offset%512;
     read_sector(fat_sector, fat_table);
     unsigned int dest_cluster = merge_bytes((uint8_t*)&fat_table[entry_offset], 4);
+    dest_cluster=dest_cluster&0x0FFFFFFF;
     kfree(fat_table);
     return dest_cluster;
 }
 int modify_fat(uint32_t cluster, uint32_t value){
+    if(cluster<2) return -1;
     unsigned char* fat_table = kmalloc(512);
     if(!fat_table) return -1;
     int fat_offset=cluster*4;
     int fat_sector = partition_start+reserved_sectors +(fat_offset/512);
+    if(fat_sector>partition_start+reserved_sectors+sectors_per_fat){
+        return -1;
+    }
     int entry_offset =fat_offset%512;
     read_sector(fat_sector, fat_table);
     fat_table[entry_offset]=((value) & 0xFF);
@@ -62,16 +63,10 @@ int modify_fat(uint32_t cluster, uint32_t value){
     fat_table[entry_offset+2]=((value>>16) & 0xFF);
     fat_table[entry_offset+3]=((value>>24) & 0xFF);
     for(int i=0; i<num_of_fats; i++){
-        write_sector(fat_sector+i*sectors_per_fat, fat_table);
+        if(write_sector(fat_sector+i*sectors_per_fat, fat_table)==-1) printf("FAILED WRITE");
     }
     kfree(fat_table);
     return 0;
-}
-int create_file(char* filename){
-    File_Location location = get_file_location(filename);
-    if(location.byte_offset==-1){
-        return 1;
-    }
 }
 
 DirectoryListing directory_parse(int cluster_num){ //caller must free result.entries
@@ -127,7 +122,7 @@ char* filename_to_plaintext(unsigned char *filename){ //caller must free file_pl
 char* file_contents(char* filename){
     int clusternum = 0;
     int bytes_written = 0;
-    File_Location location = get_file_location(filename);
+    File_Location location = get_file_location(filename, FIND_EXISTS);
     char* contents_buffer = NULL;
     if(location.byte_offset==-1){
         return NULL;
@@ -154,6 +149,10 @@ char* file_contents(char* filename){
             }
         }
         clusternum++;
+        if(clusternum>=256){
+            kfree(sectordata);
+            return NULL;
+        }
         current_cluster=get_from_fat(current_cluster);
     }
     kfree(sectordata);
@@ -280,6 +279,41 @@ int file_path_destination(char* input_dir){
     }
     return current_cluster;
 }
+int extend_file(int cluster){
+    uint32_t new_cluster=0;
+    uint32_t current_cluster=0;
+    uint32_t prev_last_cluster=0;
+    while(cluster>=2 && cluster<0x0FFFFFF8){
+        prev_last_cluster=cluster;
+        cluster=get_from_fat(cluster);
+    }
+    if(cluster!=0x0FFFFFF8) return 1;
+    uint32_t first_fat_sector=partition_start+reserved_sectors;
+    uint8_t *sectordata = kmalloc(512);
+    for(int i=0; i<sectors_per_fat; i++){
+        read_sector(first_fat_sector+i, sectordata);
+        for(int j=0; j<512; j+=4){
+            if(sectordata[j]==0 && sectordata[j+1]==0 && sectordata[j+2]==0 && sectordata[j+3]==0){
+                goto skip;
+            }
+            current_cluster++;
+        }
+    }
+    kfree(sectordata);
+    return 1;
+skip:
+    kfree(sectordata);
+    modify_fat(current_cluster, 0x0FFFFFF8);
+    modify_fat(prev_last_cluster, current_cluster);
+    uint8_t *null_sector = kmalloc(512);
+    memset(null_sector, 0, 512);
+    int start_sector=sector_of_cluster(current_cluster);
+    for(int i=0;i<sectors_per_cluster; i++){
+        write_sector(start_sector+i, null_sector);
+    }
+    kfree(null_sector);
+    return 0;
+}
 char* append_path(char* filepath){ //caller must free
     if(filepath[0]=='/'){
         return strdup(filepath);
@@ -296,7 +330,7 @@ char* append_path(char* filepath){ //caller must free
     new_filepath[wd_len+add_slash+fp_len]='\0';
     return new_filepath;
 }
-File_Location get_file_location(char* filename){
+File_Location get_file_location(char* filename, LookupMode mode){
     int slash=-1;
     File_Location not_found = {-1, -1, -1};
     int len = strlen(filename);
@@ -343,9 +377,11 @@ File_Location get_file_location(char* filename){
     for(int i=0; i<dirlist.count; i++){
         if(!dirlist.entries[i].name) continue;
         if(!formatted_name) break;
-        if(strncmp(dirlist.entries[i].name, formatted_name, 11)==0){
-            match=1;
-            break;
+        if(mode==FIND_EXISTS){
+            if(strncmp(dirlist.entries[i].name, formatted_name, 11)==0){
+                match=1;
+                break;
+            }
         }
         byte_offset+=32;
         if (byte_offset==512){
@@ -371,25 +407,12 @@ File_Location get_file_location(char* filename){
     }
     return filedest;
 }
-void add_to_fatcache(uint32_t cluster, uint32_t value){
-    fat_cache = krealloc(fat_cache, (fat_cache_count+1)*sizeof(fat_entry));
-    if(!fat_cache) return;
-    fat_cache[fat_cache_count].cluster=cluster;
-    fat_cache[fat_cache_count].value=value;
-    fat_cache_count++;
-}
-void flush_fatcache(){
-    for(int i=0; i<fat_cache_count; i++){
-        modify_fat(fat_cache[i].cluster, fat_cache[i].value);
-    }
-    kfree(fat_cache);
-    fat_cache=NULL;
-    fat_cache_count=0;
-}
 int delete_file(char* filename){
-    iteration++;
-    File_Location location = get_file_location(filename);
+    File_Location location = get_file_location(filename, FIND_EXISTS);
     if(location.byte_offset==-1){
+        return 1;
+    }
+    if(location.cluster<2){
         return 1;
     }
     uint8_t *file_sector = kmalloc(512);
@@ -422,7 +445,6 @@ int delete_file(char* filename){
             if(!full_name){
                 kfree(new_filename);
                 kfree(file_sector);
-                iteration--;
                 return 1;
             }
             strcpy(full_name, filename);
@@ -436,19 +458,16 @@ int delete_file(char* filename){
     }
     while(cluster >=2 && cluster<0x0FFFFFF8){
         uint32_t next= get_from_fat(cluster);
-        add_to_fatcache(cluster, 0);
+        modify_fat(cluster, 0);
         cluster=next;
     }
     file_sector[location.byte_offset]=0xE5; //signifies deleted file
     write_sector(location.lba, file_sector);
     kfree(file_sector);
-    printf("Deleted %s ", filename);
-    iteration--;
-    if(iteration==0) flush_fatcache();
     return 0;
 }
 int check_attributes(char* filename){
-    File_Location location = get_file_location(filename);
+    File_Location location = get_file_location(filename, FIND_EXISTS);
     if (location.byte_offset ==-1) return -1;
     uint8_t *file_sector = kmalloc(512);
     if(!file_sector) return -1;
@@ -495,4 +514,9 @@ void normalize_path(char *path){
     }
     *dst = '\0';
 }
-                               
+int create_file(char* filename){
+    File_Location location = get_file_location(filename, FIND_NEW);
+    if(location.byte_offset!=0) delete_file(filename);
+
+
+}
