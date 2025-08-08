@@ -200,8 +200,12 @@ void update_key_state(uint16_t data){
 }
 KeyEvent scancode_to_char(uint16_t keynum){
     KeyEvent key = {0};
-    if(!key_state[keynum] || keynum >= ASCII_MAP_SIZE){
+    if(!key_state[keynum]){
         return key;
+    }
+    if(keynum>E0_OFFSET && keynum<F0_OFFSET){
+        key.special=1;
+        keynum-=E0_OFFSET;
     }
     char keyletter;
     _Bool shiftOn = key_state[LEFT_SHIFT] || key_state[RIGHT_SHIFT_KEY];

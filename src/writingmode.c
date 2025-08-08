@@ -6,6 +6,7 @@
 #include "vga.h"
 #include "keyboardhandler.h"
 #include "writingmode.h"
+#include "kmalloc.h"
 #include "inputhandler.h"
 int mode=1;
 uint16_t shell_buffer[EXTRA_TEXT_BUFFER_SIZE];
@@ -41,6 +42,17 @@ void shell_backspace(){
 	terminal_putentryat('\0', terminal_color, terminal_column, terminal_row);
 	update_cursor(terminal_column, terminal_row);
 	return;
+}
+void clear_beyond_input(){
+	memset(&terminal_buffer[input_start_row*VGA_WIDTH+input_start_column], 0, (VGA_WIDTH*VGA_HEIGHT)-(input_start_row*VGA_WIDTH+input_start_column));
+	terminal_row=input_start_row;
+	terminal_column=input_start_column+1;
+}
+void shift_forward_shell_input(){
+	memmove(&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column+2],&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column+1], (VGA_WIDTH*VGA_HEIGHT)-(terminal_row*VGA_WIDTH+terminal_column+1));
+}
+void shift_backwards_shell_input(){
+	memmove(&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column],&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column+1], (VGA_WIDTH*VGA_HEIGHT)-(terminal_row*VGA_WIDTH+terminal_column+1));
 }
 void shell_scroll(){
 	if(input_start_row==0 && is_input_from_user){
@@ -78,7 +90,45 @@ void keyparse(KeyEvent key){
 		if(key.scancode==BACKSPACE_KEY){
 			shell_backspace();
 			remove_from_input_buffer();
+			shift_backwards_shell_input();
 			return;
+		}
+		if(key.scancode==CURSOR_UP && key.special==1){
+			clear_beyond_input();
+			back_history();
+		}
+		if(key.scancode==CURSOR_DOWN && key.special==1){
+			clear_beyond_input();
+			forward_history();
+		}
+		if(key.scancode==CURSOR_LEFT && key.special==1){
+			if(terminal_row == input_start_row && terminal_column == input_start_column+1){
+				return;
+			}
+			terminal_column--;
+			if(terminal_column<0){
+				terminal_column=VGA_WIDTH-1;
+				terminal_row--;
+			}
+			update_cursor(terminal_column, terminal_row);
+		}
+		if(key.scancode==CURSOR_RIGHT && key.special==1){
+			if(terminal_column+1==VGA_WIDTH){
+				if(terminal_getcharat(0, terminal_row+1)=='\0' && terminal_getcharat(terminal_column, terminal_row)=='\0'){
+					return;
+				}
+			}
+			else{
+				if(terminal_getcharat(terminal_column+1, terminal_row)=='\0' && terminal_getcharat(terminal_column, terminal_row)=='\0'){
+					return;
+				}
+			}
+			terminal_column++;
+			if(terminal_column==VGA_WIDTH){
+				terminal_column=0;
+				terminal_row++;
+			}
+			update_cursor(terminal_column, terminal_row);
 		}
 		if(key.ascii != '\0'){
 			 shell_print(key.ascii);
@@ -94,6 +144,13 @@ void shell_print(char c){
 		}
 		return;	
     }
+	shift_forward_shell_input();
 	terminal_putchar(c);
 	add_to_input_buffer(c);
+}
+void init_editor(){
+	uint16_t *old_screen = kmalloc(VGA_WIDTH*VGA_HEIGHT*2);
+	memcpy(old_screen, terminal_buffer, VGA_WIDTH*VGA_HEIGHT);
+	terminal_initialize();
+	mode=2;
 }

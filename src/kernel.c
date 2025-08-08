@@ -49,8 +49,3 @@ void kernel_main(multiboot_info_t* mbd, unsigned long magic)
 		msleep(10);
 	}
 }
-void panic(char *error){
-	printf("FATAL ERROR %s\n", error);
-
-	 __asm__ volatile("cli; hlt"); //disable interrupts, halt cpu function
-}

@@ -3,3 +3,5 @@
 #define MAX_ARGS 16
 #define ARG_SIZE 64
 void parse_and_run();
+void back_history();
+void forward_history();

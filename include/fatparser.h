@@ -30,16 +30,15 @@ typedef struct {
     int cluster;
 }__attribute__((packed)) File_Location;
 
-typedef struct{
-    uint32_t cluster;
-    uint32_t value;
-} fat_entry;
-
 typedef enum{
     FIND_EXISTS,
     FIND_NEW
 } LookupMode;
 
+typedef enum{
+    FILE,
+    DIRECTORY
+} FileType;
 
 uint32_t sector_of_cluster(int clusternum);
 extern uint8_t num_of_fats;
@@ -56,3 +55,4 @@ int check_attributes(char* filename);
 char* append_path(char* filepath);
 void normalize_path(char *path); 
 char* file_contents(char* filename);
+int create_file(char* filename, FileType type);

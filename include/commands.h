@@ -9,3 +9,5 @@ void cmd_pwd(int argc, char** argv);
 void cmd_cd(int argc, char** argv);
 void cmd_rm(int argc, char** argv);
 void cmd_cat(int argc, char** argv);
+void cmd_mkdir(int argc, char** argv);
+void cmd_touch(int argc, char** argv);

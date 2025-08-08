@@ -14,7 +14,7 @@ void cmd_echo(int argc, char** argv){
 }
 
 void cmd_help(int argc, char** argv){
-    terminal_writestring("Commands- echo <word>, ls <optional directory>, pwd, cd <directory>, cat <file>, play <note> <duration>, time, clear, help <enter a command here for info>\n");
+    terminal_writestring("Commands- echo <word>, ls <optional directory>, pwd, cd <directory>, cat <file>, play <note> <duration>, time, clear, touch <file>, mkdir <directory>, help <enter a command here for info>\n");
 }
 void cmd_play_note(int argc, char** argv){
     if(argc < 3){
@@ -102,7 +102,7 @@ void cmd_rm(int argc, char** argv){
         printf("Use \"rm -r\" if you're sure you want to delete a directory.\n");
         return;
     }
-    if(delete_file(argv[argc-1])==1) printf("File \"%s\" not found.\n", argv[argc-1]);
+    if(delete_file(argv[argc-1])==-1) printf("File \"%s\" not found.\n", argv[argc-1]);
     else printf("Deleted %s ", argv[argc-1]);
 }
 void cmd_cat(int argc, char** argv){
@@ -112,10 +112,22 @@ void cmd_cat(int argc, char** argv){
     }
     char* file = file_contents(argv[1]);
     if(!file){
-        printf("File \"%s\" not found, is a directory, or is too large.\n", argv[1]);
+        printf("File \"%s\" not found, is empty, is a directory, or is too large.\n", argv[1]);
         return;
     }
     printf(file);
     kfree(file);
     
+}
+void cmd_touch(int argc, char** argv){
+    if(argc<2){
+        printf("Usage: touch <file>, creates a file with given name. Name can only be up to 8 characters, extensions up to 3.");
+    }
+    if(create_file(argv[1], FILE)==-1) printf("Invalid filepath or filename. Names can be 8 characters, extensions 3. For example, output11.txt works, but output1234 does not.");
+}
+void cmd_mkdir(int argc, char** argv){
+        if(argc<2){
+        printf("Usage: mkdir <directory>, creates a directory with given name. Name can only be up to 8 characters, extensions up to 3.");
+    }
+    if(create_file(argv[1], DIRECTORY)==-1) printf("Invalid filepath or directory name. Names can be 8 characters, extensions 3.");
 }

@@ -64,7 +64,7 @@ int read_sector(uint32_t sector, uint8_t data_buffer[512]){
     if(!startup_read &&(sector<partition_start || sector>partition_end)){
         return -1;
     }
-    int timer=10000;
+    int timer=100000;
     uint16_t temp_array[256];
     outb(bus_select+DRIVE_REGISTER_OFFSET, 0b11100000 | ((sector>>24)&0b00001111) | (is_slave_drive<<4) ); 
     outb(bus_select+LBA_LOW_REGISTER_OFFSET, sector & 0b11111111); 
@@ -91,7 +91,7 @@ int write_sector(uint32_t sector, uint8_t* sector_data){
      if(sector<partition_start || sector>partition_end|| sector==0){
         return -1;
     }
-    int timer=100000;
+    int timer=1000000;
     uint16_t *temp_array=kmalloc(512);
     if(!temp_array) return -1;
     for(int i=0; i<256; i++){
@@ -103,7 +103,6 @@ int write_sector(uint32_t sector, uint8_t* sector_data){
     outb(bus_select+LBA_HIGH_REGISTER_OFFSET, (sector>>16) & 0b11111111);
     outb(bus_select+SECTOR_COUNT_REGISTER_OFFSET, 1); //write to 1 register
     mega_wait();
-    timer=100000;
     while((inb(bus_select+STATUS_REGISTER_OFFSET)&0b10000000)!=0 && --timer) io_wait(); //last bit indicates drive is busy
     if(!timer){
         kfree(temp_array);
@@ -112,7 +111,6 @@ int write_sector(uint32_t sector, uint8_t* sector_data){
     outb(bus_select+COMMAND_REGISTER_OFFSET, 0x30); //write command
     mega_wait();
     while((inb(bus_select+STATUS_REGISTER_OFFSET)&0b10000000)!=0 && --timer) io_wait();
-    timer=100000;
     while (!(inb(bus_select + STATUS_REGISTER_OFFSET) & 0b00001000) && --timer) io_wait(); 
     if(!timer){
         kfree(temp_array);
@@ -122,7 +120,6 @@ int write_sector(uint32_t sector, uint8_t* sector_data){
         outw(bus_select+DATA_REGISTER_OFFSET, temp_array[i]);
     }
     outb(bus_select+COMMAND_REGISTER_OFFSET, 0xE7); //flush write cache
-    timer = 100000;
     while((inb(bus_select+STATUS_REGISTER_OFFSET)&0x80) && --timer) io_wait();
     if(!timer){
         kfree(temp_array);
