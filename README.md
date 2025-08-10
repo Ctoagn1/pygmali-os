@@ -1,3 +1,18 @@
 # pygmali-os
-A project I'm doing to try and learn more C and low-level development. 
-To use, "make" to compile, assemble, and link the sources, "make fs" to make the disk image (note- using the loop device and mounting requires sudo, check the bash script if you want to be sure it's safe), and "make run" to run in in qemu. Right now, it supports basic read functionality- working on writing next!
+A mini-kernel I'm doing to try and learn more C and low-level development. 
+
+## Features-
+Uses ATA to support a FAT32 file system with a working directory and navigation- supports cd, ls, cat, pwd, touch, and mkdir. Make your own text files with the built-in text editor, galatea, by typing  `galatea <filename>`
+
+![alt text](https://github.com/Ctoagn1/pygmali-os/blob/master/img/macbeth.png?raw=true)
+
+It also uses the programmable interval timer to interface with the pc speaker- script simple monotonic melodies, and play them back with `orpheus <filename>`
+
+![alt text](https://github.com/Ctoagn1/pygmali-os/blob/master/img/music.png?raw=true)
+
+Reads CMOS for current time/date, and uses rtc to update it locally
+
+**Full command list:** `echo <words>, help, play <note> <duratrion>, clear, time, pwd, ls <optional directory>, cd <directory>, rm <file> (with -r flag for dirs), cat <filename>, touch <filename>, mkdir <dirname>, galatea <filename, new or existing>, heapcheck, orpheus <filename>`
+
+![alt text](https://github.com/Ctoagn1/pygmali-os/blob/master/img/homescreen.png?raw=true)
+
