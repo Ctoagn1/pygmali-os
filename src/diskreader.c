@@ -181,16 +181,5 @@ void scan_mbr(){
     }
     startup_read=0;
 }
-void make_mbr(){ //keeping for reference, not going to use this
-    uint8_t mbr[512] = {0};
-    mbr[PARTITION_TABLE_OFFSET]=0b00000000; //last bit on if bootable
-    mbr[PARTITION_TABLE_OFFSET+4]=0x0C; //partition type, FAT32 with LBA
-    mbr[PARTITION_TABLE_OFFSET+8]=1; //begins right after mbr
-    mbr[PARTITION_TABLE_OFFSET+13]=0b00000100; //1024 sectors
-    mbr[510]=0x55;
-    mbr[511]=0xAA;//valid mbr signature
-    if(write_sector(0, mbr)==-1) terminal_writestring("Failed to write to disk");
-}
-
 
 

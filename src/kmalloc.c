@@ -6,6 +6,7 @@
 
 void *heap_start=NULL;
 void *heap_end=NULL;
+int allocs;
 typedef struct block_header{
     size_t size;
     int free;
@@ -24,6 +25,7 @@ void* kmalloc(size_t size){
         heap_base->free = 0;
         heap_base->next = NULL;
         //printf("Allocated %p ", heap_base+1);
+        allocs++;
         return (void*)(heap_base+1); //return space after header
     }
     while(current && !(current->free && current->size >= size)){
@@ -42,13 +44,14 @@ void* kmalloc(size_t size){
            current->next=split_block;
         }
         //printf("Allocated %p ", current+1);
+        allocs++;
         return (void*)(current+1);
     }
     //create new block
     if(prev==NULL)  return NULL;
     block_header* new_block = (block_header*)((char*)prev+sizeof(block_header)+prev->size); //pointer arithmetic is based off of data size so to add (size) bytes it is necessary to cast the pointer as a 1-byte data type
-    if((uint8_t*)new_block + sizeof(block_header)+size > (uintptr_t)heap_end){
-        printf("FULL");
+    if((uintptr_t)new_block + sizeof(block_header)+size > (uintptr_t)heap_end){
+        printf("FULL %d:%p", size, new_block);
         return NULL; //cannot allocate further
     }
     new_block->size = size;
@@ -56,6 +59,7 @@ void* kmalloc(size_t size){
     new_block->next = NULL;
     prev->next = new_block;
     //printf("Allocated %p ", new_block+1);
+    allocs++;
     return (void*)(new_block+1);
 }
 void kfree(void* to_be_freed){
@@ -63,6 +67,7 @@ void kfree(void* to_be_freed){
         printf("INVALID FREE %p", to_be_freed);
         return;
     }
+    allocs--;
     //printf("Freed %p ", to_be_freed);
     block_header* header = ((block_header*)to_be_freed)-1;
     header->free = 1;
@@ -96,4 +101,27 @@ void* krealloc(void* ptr, size_t size){
     memcpy(new_ptr, ptr, header->size);
     kfree(ptr);
     return new_ptr;
+}
+Heap_Info heap_stats(){
+    int used_blocks=0;
+    int used_bytes=0;
+    int total_blocks=0;
+    int total_bytes=0;
+    Heap_Info stats = {0};
+    block_header* current= (block_header*)heap_start;
+    while(current!=NULL){
+        total_blocks++;
+        total_bytes+=current->size;
+        if(current->free==0){
+            used_blocks++;
+            used_bytes+=current->size;
+        }
+        current=current->next;
+    }
+    stats.used_blocks=used_blocks;
+    stats.used_bytes=used_bytes+used_blocks*sizeof(block_header);
+    stats.total_blocks=total_blocks;
+    stats.total_bytes=total_bytes+total_blocks*sizeof(block_header);
+    stats.allocs=allocs;
+    return stats;
 }

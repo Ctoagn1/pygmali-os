@@ -3,6 +3,13 @@
 #include "string.h"
 #include "kmalloc.h"
 #define FAT_NAME_LENGTH 11
+extern uint16_t bytes_per_sector;
+extern uint8_t sectors_per_cluster;
+extern uint16_t reserved_sectors;
+extern uint8_t num_of_fats;
+extern uint32_t sectors_per_fat;
+extern uint32_t root_cluster;
+extern uint64_t first_data_sector;
 extern char* working_dir;
 typedef struct{
     unsigned char name[11];
@@ -56,3 +63,5 @@ char* append_path(char* filepath);
 void normalize_path(char *path); 
 char* file_contents(char* filename);
 int create_file(char* filename, FileType type);
+int extend_file(int cluster);
+int write_to_file(char* contents, int byte_size, char* filename);

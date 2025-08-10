@@ -94,16 +94,3 @@ void play_sound(uint16_t hertz, uint32_t duration){
     msleep(duration);
     outb(PC_SPEAKER, 0);
 }
-void bad_time(){
-    play_sound(D4, 200);
-	play_sound(D4, 200);
-	play_sound(D5, 200);
-    msleep(100);
-    play_sound(A4, 200);
-	msleep(200);
-	play_sound(GSHARP4, 200);
-	msleep(50);
-	play_sound(G4, 200);
-	msleep(75);
-	play_sound(F4, 200);
-}

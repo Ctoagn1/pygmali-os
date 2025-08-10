@@ -25,10 +25,8 @@ char shift_ascii_map[ASCII_MAP_SIZE] = {[A_KEY]='A',[B_KEY]='B',[C_KEY]='C',[D_K
 [_9_KEY]='(',[MINUS_KEY]='_',[EQUALS_KEY]='+', [ENTER_KEY]='\n', [TAB_KEY]='\t',[SPACE_KEY]= ' '};
 
 static uint8_t keyboard_buffer[KEYBOARD_BUFFER_SIZE];
-char input_buffer[INPUT_BUFFER_SIZE] = {0};
 static volatile uint8_t head = 0;
 static volatile uint8_t tail = 0;
-size_t input_len = 0;
 _Bool capslock_on = 0;
 
 void write_to_buffer(){
@@ -222,27 +220,6 @@ KeyEvent scancode_to_char(uint16_t keynum){
     key.ascii=keyletter;
     return key;
     
-}
-void add_to_input_buffer(char newinput){
-    if(input_len<INPUT_BUFFER_SIZE-1){
-        input_buffer[input_len] = newinput;
-        input_len++;
-        input_buffer[input_len] = '\0'; //ensure null termination
-    }
-}
-void remove_from_input_buffer(){
-    if(input_len>0){
-        input_len--;
-        input_buffer[input_len]='\0';
-    }
-}
-void clear_input_buffer(){
-    memset(input_buffer, 0, INPUT_BUFFER_SIZE);
-    input_len=0;
-}
-void screen_writer(){
-    KeyEvent key = {0};
-    if(get_keyevent(&key)) keyparse(key);
 }
 _Bool get_keyevent(KeyEvent *event){
     uint16_t data;

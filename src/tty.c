@@ -10,9 +10,6 @@
 #include "inputhandler.h"
 #include "writingmode.h"
 
-#define VGA_WIDTH   80
-#define VGA_HEIGHT  25
-#define VGA_MEMORY  0xB8000
 
 
 size_t terminal_row;
@@ -91,6 +88,18 @@ void terminal_putchar(char c)
 		}
 		return;	
     }
+	if(c=='\t'){
+		/*terminal_column+=4;
+		if(terminal_column>= VGA_WIDTH){
+			terminal_column%=VGA_WIDTH;
+			terminal_row++;
+			if(terminal_row==VGA_HEIGHT){
+				scroll();
+			}
+		}*/
+		return;
+	}
+
 	terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
 	if (++terminal_column == VGA_WIDTH) {
 		terminal_column = 0;

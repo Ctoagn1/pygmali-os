@@ -119,6 +119,14 @@ char* filename_to_plaintext(unsigned char *filename){ //caller must free file_pl
     }
     return file_plaintext;
 }
+int get_file_size(uint32_t cluster){
+    int size=0;
+    while(cluster<0x0FFFFFF8 && cluster>1){
+        cluster=get_from_fat(cluster);
+        size++;
+    }
+    return size;
+}
 char* file_contents(char* filename){
     int clusternum = 0;
     int bytes_written = 0;
@@ -132,13 +140,24 @@ char* file_contents(char* filename){
     read_sector(location.lba, file_sector);
     Cluster_Entry* file_entry = (Cluster_Entry*)&file_sector[location.byte_offset];
     if((file_entry->attr&0x10) == 0x10){
+        kfree(file_sector);
         return NULL;
     }
     char* sectordata = kmalloc(512);
+    if(!sectordata){
+        kfree(file_sector);
+        return NULL;
+    }
     uint32_t current_cluster = (uint32_t)file_entry->low_cluster_number+((uint32_t)file_entry->high_cluster_number<<16);
     while(current_cluster>=root_cluster && current_cluster<0x0FFFFFF8){
-        contents_buffer=krealloc(contents_buffer, sectors_per_cluster*512*(1+clusternum));
-        if(!contents_buffer) return NULL;
+        char* new_buffer =krealloc(contents_buffer, sectors_per_cluster*512*(1+clusternum));
+        if(!new_buffer){
+            kfree(contents_buffer);
+            kfree(file_sector);
+            kfree(sectordata);
+            return NULL;
+        }
+        contents_buffer=new_buffer;
         int current_sector = sector_of_cluster(current_cluster);
         for(int i=0; i<sectors_per_cluster; i++){
             read_sector(current_sector+i, sectordata);
@@ -151,11 +170,13 @@ char* file_contents(char* filename){
         clusternum++;
         if(clusternum>=256){
             kfree(sectordata);
+            kfree(file_sector);
             return NULL;
         }
         current_cluster=get_from_fat(current_cluster);
     }
     kfree(sectordata);
+    kfree(file_sector);
     contents_buffer[bytes_written]='\0';
     return contents_buffer;
 }
@@ -278,6 +299,64 @@ int file_path_destination(char* input_dir){
         }
     }
     return current_cluster;
+}
+int write_to_file(char* contents, int byte_size, char* filename){
+    int padded_len=byte_size+((sectors_per_cluster*512)-byte_size%(sectors_per_cluster*512));
+    if(byte_size%(512*sectors_per_cluster)==0) padded_len=byte_size;
+    char* padded_contents=kmalloc(padded_len);
+    if(!padded_contents) return -1;
+    memset(padded_contents, 0, padded_len);
+    memcpy(padded_contents, contents, byte_size);
+    int cluster_size=padded_len/(512*sectors_per_cluster);
+    File_Location direntry = get_file_location(filename, FIND_EXISTS);
+    if(direntry.byte_offset==-1){
+        kfree(padded_contents);
+        return -1;
+    }
+    char* sector_buffer = kmalloc(512);
+    if(!sector_buffer){
+        kfree(padded_contents);
+        return -1;
+    }
+    read_sector(direntry.lba, sector_buffer);
+    Cluster_Entry* file_entry = (Cluster_Entry*)&sector_buffer[direntry.byte_offset];
+    uint32_t start_cluster = (uint32_t)file_entry->low_cluster_number|((uint32_t)file_entry->high_cluster_number<<16);
+    int start_size = get_file_size(start_cluster);
+    int extend=start_cluster;
+    for(int i=0; i<cluster_size-start_size; i++){
+        extend=extend_file(extend);
+    }
+    if(extend==1){
+        kfree(padded_contents);
+        return -1;
+    }
+    uint32_t current_cluster = start_cluster;
+    if(start_size>cluster_size){
+        int cluster_count=1;
+        while(cluster_count<start_size){
+            current_cluster=get_from_fat(current_cluster);
+            cluster_count++;
+        }
+        int next_cluster=get_from_fat(current_cluster);
+        modify_fat(current_cluster, 0x0FFFFFF8);
+        current_cluster=next_cluster;
+        while(current_cluster<0x0FFFFFF8 && current_cluster>1){
+            next_cluster=get_from_fat(current_cluster);
+            modify_fat(current_cluster, 0);
+            current_cluster=next_cluster;
+        }
+    }
+    current_cluster=start_cluster;
+    for(int i=0; i<cluster_size; i++){
+        int first_sector=sector_of_cluster(current_cluster);
+        for(int j=0; j<sectors_per_cluster; j++){
+            write_sector(first_sector+j, &padded_contents[(i*sectors_per_cluster+j)*512]);
+        }
+        current_cluster=get_from_fat(current_cluster);
+    }
+    kfree(sector_buffer);
+    kfree(padded_contents);
+    return 0;
 }
 uint32_t get_empty_cluster(){
     uint32_t first_fat_sector=partition_start+reserved_sectors;

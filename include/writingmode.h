@@ -7,3 +7,4 @@ void scroll();
 void terminal_shell_set();
 void keyparse(KeyEvent key);
 void shell_print(char c);
+extern int mode;

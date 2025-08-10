@@ -30,6 +30,9 @@ Command commands[] = {
     {"cat", cmd_cat},
     {"touch", cmd_touch},
     {"mkdir", cmd_mkdir},
+    {"galatea", cmd_galatea},
+    {"heapcheck", cmd_heapcheck},
+    {"orpheus", cmd_orpheus},
     {NULL, NULL} //signals end of list
 };
 void store_prev_inputs(){

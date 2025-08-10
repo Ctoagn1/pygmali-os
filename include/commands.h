@@ -11,3 +11,6 @@ void cmd_rm(int argc, char** argv);
 void cmd_cat(int argc, char** argv);
 void cmd_mkdir(int argc, char** argv);
 void cmd_touch(int argc, char** argv);
+void cmd_galatea(int argc, char** argv);
+void cmd_heapcheck(int argc, char**argv);
+void cmd_orpheus(int argc, char** argv);

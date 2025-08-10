@@ -14,7 +14,7 @@
 #include "writingmode.h"
 #include "fatparser.h"
 #include "multiboot.h"
-#define HEAP_SIZE (32*1024*1024)
+#define HEAP_SIZE (1024*1024*64)
 
 void kernel_main(multiboot_info_t* mbd, unsigned long magic)
 {

@@ -7,27 +7,39 @@
 #include "keyboardhandler.h"
 #include "writingmode.h"
 #include "kmalloc.h"
+#include "galatea.h"
 #include "inputhandler.h"
 int mode=1;
 uint16_t shell_buffer[EXTRA_TEXT_BUFFER_SIZE];
+char input_buffer[INPUT_BUFFER_SIZE] = {0};
+size_t input_len = 0;
+int input_pos = 0;
+void add_to_input_buffer(char newinput){
+    if(input_len<INPUT_BUFFER_SIZE-1){
+		memmove(&input_buffer[input_pos+1], &input_buffer[input_pos],input_len-input_pos+1);
+        input_buffer[input_pos] = newinput;
+        input_len++;
+		input_pos++;
+    }
+}
+void remove_from_input_buffer(){
+    if(input_len>0){
+        input_len--;
+		input_pos--;
+		memmove(&input_buffer[input_pos-1], &input_buffer[input_pos], input_len-input_pos);
+        input_buffer[input_len]='\0';
+    }
+}
+
+void clear_input_buffer(){
+    memset(input_buffer, 0, INPUT_BUFFER_SIZE);
+    input_len=0;
+	input_pos=0;
+}
 void shell_backspace(){
 	if(terminal_row == input_start_row && terminal_column == input_start_column+1){
 		return;
 	}
-	/*if(terminal_column == 0){ //this logic isn't really necessary for shell mode, but eh I already wrote it
-		if(terminal_row == 0){
-			return;
-		}
-		else{
-			terminal_row--;
-			terminal_column=VGA_WIDTH-1;
-			while(terminal_getcharat(terminal_column, terminal_row) == 0 && terminal_column !=nn 0)
-				terminal_column--;
-			if(terminal_getcharat(terminal_column, terminal_row) != 0)
-				terminal_column++;
-			update_cursor(terminal_column, terminal_row);
-			return;
-		} */ //for non-shell mode, maybe editing files?
 	if(terminal_column==0 && terminal_row==(VGA_HEIGHT-1)){
 		memmove(&terminal_buffer[VGA_WIDTH], &terminal_buffer[0], VGA_WIDTH*(VGA_HEIGHT-1)*sizeof(terminal_buffer[0])); //shift text down
 		memmove(&terminal_buffer[0], &shell_buffer[0], VGA_WIDTH*sizeof(terminal_buffer[0])); // load text from buffer
@@ -49,7 +61,7 @@ void clear_beyond_input(){
 	terminal_column=input_start_column+1;
 }
 void shift_forward_shell_input(){
-	memmove(&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column+2],&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column+1], (VGA_WIDTH*VGA_HEIGHT)-(terminal_row*VGA_WIDTH+terminal_column+1));
+	memmove(&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column],&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column-1], (VGA_WIDTH*VGA_HEIGHT)-(terminal_row*VGA_WIDTH+terminal_column+1));
 }
 void shift_backwards_shell_input(){
 	memmove(&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column],&terminal_buffer[terminal_row*VGA_WIDTH+terminal_column+1], (VGA_WIDTH*VGA_HEIGHT)-(terminal_row*VGA_WIDTH+terminal_column+1));
@@ -105,6 +117,7 @@ void keyparse(KeyEvent key){
 			if(terminal_row == input_start_row && terminal_column == input_start_column+1){
 				return;
 			}
+			input_pos--;
 			terminal_column--;
 			if(terminal_column<0){
 				terminal_column=VGA_WIDTH-1;
@@ -123,6 +136,7 @@ void keyparse(KeyEvent key){
 					return;
 				}
 			}
+			input_pos++;
 			terminal_column++;
 			if(terminal_column==VGA_WIDTH){
 				terminal_column=0;
@@ -134,6 +148,9 @@ void keyparse(KeyEvent key){
 			 shell_print(key.ascii);
 		}
 	}
+	if(mode==2){
+		editor_parse(key);
+	}
 }
 void shell_print(char c){
     if (c == '\n'){
@@ -144,13 +161,13 @@ void shell_print(char c){
 		}
 		return;	
     }
+	if(c=='\t') return;
 	shift_forward_shell_input();
 	terminal_putchar(c);
 	add_to_input_buffer(c);
+	update_cursor(terminal_column, terminal_row);
 }
-void init_editor(){
-	uint16_t *old_screen = kmalloc(VGA_WIDTH*VGA_HEIGHT*2);
-	memcpy(old_screen, terminal_buffer, VGA_WIDTH*VGA_HEIGHT);
-	terminal_initialize();
-	mode=2;
+void screen_writer(){
+    KeyEvent key = {0};
+    if(get_keyevent(&key)) keyparse(key);
 }

@@ -5,6 +5,9 @@
 #include "inputhandler.h"
 #include "rtc.h"
 #include "fatparser.h"
+#include "kmalloc.h"
+#include "galatea.h"
+#include "orpheus.h"
 void cmd_echo(int argc, char** argv){
     for(int i=1; i<argc; i++){
         terminal_writestring(argv[i]);
@@ -14,7 +17,7 @@ void cmd_echo(int argc, char** argv){
 }
 
 void cmd_help(int argc, char** argv){
-    terminal_writestring("Commands- echo <word>, ls <optional directory>, pwd, cd <directory>, cat <file>, play <note> <duration>, time, clear, touch <file>, mkdir <directory>, help <enter a command here for info>\n");
+    terminal_writestring("Commands- echo <word>, ls <optional directory>, pwd, cd <directory>, cat <file>, heapcheck, galatea <filename>, orpheus <filename>, play <note> <duration>, time, clear, touch <file>, mkdir <directory>\n");
 }
 void cmd_play_note(int argc, char** argv){
     if(argc < 3){
@@ -130,4 +133,21 @@ void cmd_mkdir(int argc, char** argv){
         printf("Usage: mkdir <directory>, creates a directory with given name. Name can only be up to 8 characters, extensions up to 3.");
     }
     if(create_file(argv[1], DIRECTORY)==-1) printf("Invalid filepath or directory name. Names can be 8 characters, extensions 3.");
+}
+void cmd_galatea(int argc, char** argv){
+    if(argc<2){
+        printf("Usage: galatea <filename>, edits a new or existing file");
+        return;
+    }
+    if(init_editor(argv[1])==-1) printf("Invalid filename. Max 8 characters for name, 3 for extension.");
+}
+void cmd_heapcheck(int argc, char**argv){
+    Heap_Info data = heap_stats();
+    printf("Created:\nBlocks:%d Bytes:%d\nIn Use:\nBlocks:%d Bytes:%d\nUnfreed Allocs:%d\n", data.total_blocks, data.total_bytes, data.used_blocks, data.used_bytes, data.allocs);
+}
+void cmd_orpheus(int argc, char** argv){
+    if(argc<2){
+        printf("Usage: orpheus <filename>, plays a scripted note sequence. Format:\nBPM 120\nA4 W\nC5 Q\nREST H\nSupports W, H, Q, E, S durations.");
+    }
+    if(play_song(argv[1])==-1) printf("Song could not be played/finished. FIle does not exist or incorrect format.");
 }

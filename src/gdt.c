@@ -6,7 +6,12 @@
 uint8_t gdt[GDT_ENTRIES*8];
 uint16_t gdtsize = GDT_ENTRIES*8-1;
 
-typedef struct __attribute__((packed)) TSS{
+typedef struct __attribute__((packed)) TSS{ /*
+    note: most of these fields are irrelevant. 
+    cpu state is now stored on the stack, rather
+    than in the tss. only ss0 and esp0 matter to
+    switch to kernel stack. not that i even have
+    a userspace right now*/
     uint16_t link;
     uint16_t res_1;
     uint32_t esp0;
@@ -58,8 +63,7 @@ typedef struct GDT{
 
 void encodeGdtEntry(uint8_t *target, struct GDT source)
 {
-    //check limit to make sure it can't be encoded- TODO- add kernel error
-    //if (source.limit > 0xFFFFF) {kerror("GDT cannot encode limits larger than 0xFFFFF");}
+
 
     //encode the limit
     target[0] = source.limit & 0xFF;
@@ -89,8 +93,8 @@ void initGdt(){
     GDT KernelCode = {0, 0xFFFFF, 0x9A, 0xC};
     GDT KernelData = {0, 0xFFFFF, 0x92, 0xC}; /*flags- bit 0 reserved, 
     bit 1 enabled long mode. bit 2 is 16 bit protected when 0, 
-    32 bit when 1, bit 3 enables granularity- when 0, limits are measured in 1 byte blocks
-    , when 1, 4 KiB blocks */
+    32 bit when 1, bit 3 enables granularity- when 1, limits are measured in 1 byte blocks
+    , when 0, 4 KiB blocks */
     GDT UserCode = {0, 0xFFFFF, 0xFA, 0xC};
     GDT UserData = {0, 0xFFFFF, 0xF2, 0xC};
     GDT TaskStateSegment= {(uint32_t)&tss, (uint32_t)sizeof(tss)-1, 0x89, 0x0};
