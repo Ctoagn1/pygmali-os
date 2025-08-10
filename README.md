@@ -16,3 +16,9 @@ Reads CMOS for current time/date, and uses rtc to update it locally
 
 ![alt text](https://github.com/Ctoagn1/pygmali-os/blob/master/img/homescreen.png?raw=true)
 
+**TO DO:** I'm satisfied with the current state of the project for now, but for future additions:
+-add paging
+-add userspace (right now everything operates at ring 0)
+-possibly create own bootloader rather than relying on grub
+-add handling for specific exceptions, rather than register dump and kernel panic
+-nic support? long ways away
