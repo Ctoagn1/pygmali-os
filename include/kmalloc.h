@@ -11,7 +11,6 @@ typedef struct Heap_Info{
     int used_bytes;
     int total_bytes;
     int total_blocks;
-    int allocs;
 } Heap_Info;
 
 Heap_Info heap_stats();

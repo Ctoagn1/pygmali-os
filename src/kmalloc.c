@@ -6,7 +6,6 @@
 
 void *heap_start=NULL;
 void *heap_end=NULL;
-int allocs;
 typedef struct block_header{
     size_t size;
     int free;
@@ -25,7 +24,6 @@ void* kmalloc(size_t size){
         heap_base->free = 0;
         heap_base->next = NULL;
         //printf("Allocated %p ", heap_base+1);
-        allocs++;
         return (void*)(heap_base+1); //return space after header
     }
     while(current && !(current->free && current->size >= size)){
@@ -44,7 +42,6 @@ void* kmalloc(size_t size){
            current->next=split_block;
         }
         //printf("Allocated %p ", current+1);
-        allocs++;
         return (void*)(current+1);
     }
     //create new block
@@ -59,7 +56,6 @@ void* kmalloc(size_t size){
     new_block->next = NULL;
     prev->next = new_block;
     //printf("Allocated %p ", new_block+1);
-    allocs++;
     return (void*)(new_block+1);
 }
 void kfree(void* to_be_freed){
@@ -67,7 +63,6 @@ void kfree(void* to_be_freed){
         printf("INVALID FREE %p", to_be_freed);
         return;
     }
-    allocs--;
     //printf("Freed %p ", to_be_freed);
     block_header* header = ((block_header*)to_be_freed)-1;
     header->free = 1;
@@ -122,6 +117,5 @@ Heap_Info heap_stats(){
     stats.used_bytes=used_bytes+used_blocks*sizeof(block_header);
     stats.total_blocks=total_blocks;
     stats.total_bytes=total_bytes+total_blocks*sizeof(block_header);
-    stats.allocs=allocs;
     return stats;
 }

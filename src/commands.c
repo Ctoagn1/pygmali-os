@@ -143,7 +143,7 @@ void cmd_galatea(int argc, char** argv){
 }
 void cmd_heapcheck(int argc, char**argv){
     Heap_Info data = heap_stats();
-    printf("Created:\nBlocks:%d Bytes:%d\nIn Use:\nBlocks:%d Bytes:%d\nUnfreed Allocs:%d\n", data.total_blocks, data.total_bytes, data.used_blocks, data.used_bytes, data.allocs);
+    printf("Created:\nBlocks:%d Bytes:%d\nIn Use:\nBlocks:%d Bytes:%d\n", data.total_blocks, data.total_bytes, data.used_blocks, data.used_bytes);
 }
 void cmd_orpheus(int argc, char** argv){
     if(argc<2){
