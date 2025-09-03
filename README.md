@@ -1,5 +1,5 @@
 # pygmali-os
-A mini-kernel I'm doing to try and learn more C and low-level development. 
+A mini-kernel written in C with FAT32 file system and hardware interaction.
 
 ## Features-
 Uses ATA to support a FAT32 file system with a working directory and navigation- supports cd, ls, cat, pwd, touch, and mkdir. Make your own text files with the built-in text editor, galatea, by typing  `galatea <filename>`
