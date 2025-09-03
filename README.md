@@ -16,7 +16,15 @@ Reads CMOS for current time/date, and uses rtc to update it locally
 
 ![alt text](https://github.com/Ctoagn1/pygmali-os/blob/master/img/homescreen.png?raw=true)
 
-**TO DO:** I'm satisfied with the current state of the project for now, but for future additions:
+# Download
+Dependencies- 
+qemu-full
+i386-elf-gcc (only if you want to rebuild it! disk image is already included)
+
+First, clone the repo `https://github.com/Ctoagn1/pygmali-os` and then go into the project directory and type `make run`. Depending on your audio driver, the pa in `-audiodev pa,id=speaker` in the Makefile may need to be replaced with your existing driver, or `-audiodev pa,id=speaker -machine pcspk-audiodev=speaker` can be removed entirely if you don't care about audio.
+For those on Linux who want to regenerate the disk image, `make fs` can be used. (Note that the script to regenerate the disk does require usage of mounting and the loop device, which requires sudo).
+
+# TO DO: I'm satisfied with the current state of the project for now, but for future additions:
 
 -add paging
 
@@ -27,3 +35,6 @@ Reads CMOS for current time/date, and uses rtc to update it locally
 -add handling for specific exceptions, rather than register dump and kernel panic
 
 -nic support? long ways away
+
+# Credits
+A heavy thank you to the osdev wiki, `https://wiki.osdev.org`, without which most of this would have been next to impossible.
