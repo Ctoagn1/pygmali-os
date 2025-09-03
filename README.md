@@ -18,7 +18,7 @@ Reads CMOS for current time/date, and uses rtc to update it locally
 
 # Download
 Dependencies- 
-qemu-full
+qemu-full, 
 i386-elf-gcc (only if you want to rebuild it! disk image is already included)
 
 First, clone the repo `https://github.com/Ctoagn1/pygmali-os` and then go into the project directory and type `make run`. Depending on your audio driver, the pa in `-audiodev pa,id=speaker` in the Makefile may need to be replaced with your existing driver, or `-audiodev pa,id=speaker -machine pcspk-audiodev=speaker` can be removed entirely if you don't care about audio.
