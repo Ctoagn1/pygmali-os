@@ -83,7 +83,10 @@ DirectoryListing directory_parse(int cluster_num){ //caller must free result.ent
         }
         size++;
         result.entries = krealloc(result.entries, size*sectors_per_cluster*512);
-        if(!result.entries) return result;
+        if(!result.entries){
+            kfree(cluster);
+            return result;
+        }
         int i=0;
         while(i<((entries_per_cluster)*sizeof(Cluster_Entry))){
             memcpy(&result.entries[result.count], &cluster[i],sizeof(Cluster_Entry));
@@ -200,8 +203,14 @@ unsigned char* plaintext_to_filename(char* filename){ //caller must free file_fa
         }
         if(!(filename[i]=='.' || filename[i]=='/' || filename[i]=='\\')) valid_fat=1;
     }
-    if (valid_fat==0) return NULL;
-    if(extension_start>9) return NULL;
+    if (valid_fat==0){
+        kfree(file_fatname);
+        return NULL;
+    } 
+    if(extension_start>9){
+        kfree(file_fatname);
+        return NULL;
+    } 
     if(period_exists && strlen(filename)-extension_start>3) return NULL;
     for(int i=0; i<8; i++){
         if(filename[i]=='\0') return file_fatname;
@@ -283,6 +292,7 @@ int file_path_destination(char* input_dir){
         DirectoryListing current_dir_results= directory_parse(current_cluster); 
         unsigned char* file_entry = plaintext_to_filename(nextdir);
         if(!file_entry){
+            kfree(current_dir_results.entries);
             return -1;
         }
         memset(nextdir, 0, sizeof(nextdir));
@@ -388,7 +398,7 @@ int extend_file(int cluster){
         prev_last_cluster=cluster;
         cluster=get_from_fat(cluster);
     }
-    if(cluster!=0x0FFFFFF8) return 1;
+    if(cluster<0x0FFFFFF8) return 1;
     uint32_t new_cluster = get_empty_cluster();
     modify_fat(new_cluster, 0x0FFFFFF8);
     modify_fat(prev_last_cluster, new_cluster);
@@ -448,11 +458,15 @@ File_Location get_file_location(char* filename, LookupMode mode){
     }
     char* full_path=append_path(filepath);
     if(!full_path){
+        kfree(filepath);
+        kfree(name);
         return not_found;
     }
     cluster = file_path_destination(full_path);
     int start_cluster=cluster;
     if(cluster==-1){
+        kfree(filepath);
+        kfree(name);
         kfree(full_path);
         return not_found;
     }
@@ -460,7 +474,9 @@ File_Location get_file_location(char* filename, LookupMode mode){
     unsigned char* formatted_name = plaintext_to_filename(name);
     if(!formatted_name){
         kfree(full_path);
+        kfree(name);
         kfree(filepath);
+        kfree(dirlist.entries);
         return not_found;
     }
     for(int i=0; i<dirlist.count; i++){
@@ -523,7 +539,10 @@ int delete_file(char* filename){
     if(!file_sector) return 1;
     read_sector(location.lba, file_sector);
     Cluster_Entry* file_entry = (Cluster_Entry*)&file_sector[location.byte_offset];
-    if(file_entry->name[0]=='.' && (file_entry->name[1]=='.' || file_entry->name[1]==' ')) return 1;
+    if(file_entry->name[0]=='.' && (file_entry->name[1]=='.' || file_entry->name[1]==' ')){
+        kfree(file_sector);
+        return -1;
+    }
     if(file_entry->attr == 0b00001111){
         file_entry->name[0]=0xE5;
         write_sector(location.lba, file_sector);
@@ -549,6 +568,7 @@ int delete_file(char* filename){
             if(!full_name){
                 kfree(new_filename);
                 kfree(file_sector);
+                kfree(list.entries);
                 return -1;
             }
             strcpy(full_name, filename);

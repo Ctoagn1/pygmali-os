@@ -39,7 +39,7 @@ void write_to_buffer(){
     PIC_sendEOI(1);
 }
 uint8_t switch_scancode_set(uint8_t set){
-    int timeout = 10000;
+    int timeout = 100000;
     while (inb(KEYBOARD_COMMAND) & 2){
         io_wait();
         timeout--;
@@ -48,7 +48,7 @@ uint8_t switch_scancode_set(uint8_t set){
             return 0xFF;
         } 
     }
-    timeout = 10000;
+    timeout = 100000;
     outb(KEYBOARD_DATA,0xF0);
     while((inb(KEYBOARD_COMMAND) & 1)){ /*
         really you should wait for the output buffer on the lsb to be full instead of empty but
@@ -61,7 +61,7 @@ uint8_t switch_scancode_set(uint8_t set){
             return 0xFF;
         } 
     }
-    timeout = 10000; //lsb is output buffer
+    timeout = 100000; //lsb is output buffer
     if (inb(KEYBOARD_DATA) != 0xFA) return 0xFF;
 
     while (inb(KEYBOARD_COMMAND) & 2){
@@ -72,7 +72,7 @@ uint8_t switch_scancode_set(uint8_t set){
             return 0xFF;
         } 
     }
-    timeout = 10000;//2nd lsb is input buffer, wait until 0 so it can take new input
+    timeout = 100000;//2nd lsb is input buffer, wait until 0 so it can take new input
     outb(KEYBOARD_DATA, set);
 
     while((inb(KEYBOARD_COMMAND) & 1)){
@@ -92,7 +92,7 @@ uint8_t switch_scancode_set(uint8_t set){
 
 
 void disable_translation(){
-    int timeout=10000;
+    int timeout=100000;
     while (inb(KEYBOARD_COMMAND) & 2){
         io_wait();
         timeout--;
@@ -101,7 +101,7 @@ void disable_translation(){
             return;
         } 
     }
-    timeout = 10000;
+    timeout = 100000;
     outb(KEYBOARD_COMMAND,0x20); //read command byte command
 
     while((inb(KEYBOARD_COMMAND) & 1)){
@@ -122,7 +122,7 @@ void disable_translation(){
             return;
         } 
     }
-    timeout = 10000;
+    timeout = 100000;
     outb(KEYBOARD_COMMAND, 0x60); //write command byte command
 
     while (inb(KEYBOARD_COMMAND) & 2){

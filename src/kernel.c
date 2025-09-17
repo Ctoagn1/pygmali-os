@@ -14,18 +14,11 @@
 #include "writingmode.h"
 #include "fatparser.h"
 #include "multiboot.h"
-#define HEAP_SIZE (1024*1024*64)
-
-void kernel_main(multiboot_info_t* mbd, unsigned long magic)
+extern _heap_start;
+#define HEAP_SIZE 1048576 //1 mib
+void kernel_main()
 {
-	/*if(magic == MULTIBOOT_BOOTLOADER_MAGIC){ //checks if multiboot
-		if(!((mbd->flags&0b01000000)==0b01000000)){ //is memory map valid?
-			panic("MEMORY NOT FOUND");
-		}
-		for(int i=0; )
-	}*/
-
-	heap_start= (void*)ALIGN16((uint64_t) &_end);
+	heap_start= (void*)ALIGN16((uint64_t) &_heap_start);
 	heap_end=heap_start+HEAP_SIZE;
 	/* Initialize terminal interface */
 	set_hertz(1000);

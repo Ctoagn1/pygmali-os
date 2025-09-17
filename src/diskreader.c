@@ -160,6 +160,9 @@ void scan_gpt(){
     startup_read=0;
 }
 void scan_mbr(){
+    scan_gpt();
+    printf("PARTITION: %s LBA RANGE: %d, %d\n", gpt_identifier, partition_start, partition_end);
+    return;
 #ifdef RAW_DISK_OVERRIDE
         partition_start=0;
         partition_end=UINT32_MAX;
@@ -181,5 +184,3 @@ void scan_mbr(){
     }
     startup_read=0;
 }
-
-

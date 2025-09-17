@@ -126,7 +126,7 @@ void cmd_touch(int argc, char** argv){
     if(argc<2){
         printf("Usage: touch <file>, creates a file with given name. Name can only be up to 8 characters, extensions up to 3.");
     }
-    if(create_file(argv[1], FILE)==-1) printf("Invalid filepath or filename. Names can be 8 characters, extensions 3. For example, output11.txt works, but output1234 does not.");
+    else if(create_file(argv[1], FILE)==-1) printf("Invalid filepath or filename. Names can be 8 characters, extensions 3. For example, output11.txt works, but output1234 does not.");
 }
 void cmd_mkdir(int argc, char** argv){
         if(argc<2){
@@ -149,5 +149,8 @@ void cmd_orpheus(int argc, char** argv){
     if(argc<2){
         printf("Usage: orpheus <filename>, plays a scripted note sequence. Format:\nBPM 120\nA4 W\nC5 Q\nREST H\nSupports W, H, Q, E, S durations.");
     }
-    if(play_song(argv[1])==-1) printf("Song could not be played/finished. FIle does not exist or incorrect format.");
+    if(play_song(argv[1])==-1) printf("Song could not be played/finished. File does not exist or incorrect format.");
+}
+void cmd_crash(int argc, char ** argv){
+     asm volatile ("ud2"); //does what you'd think
 }

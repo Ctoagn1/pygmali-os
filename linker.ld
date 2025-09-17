@@ -1,7 +1,6 @@
 /* The bootloader will look at this image and start execution at the symbol
    designated as the entry point. */
-ENTRY(_start)
-
+   ENTRY(_kernel_start)
 /* Tell where the various sections of the object files will be put in the final
    kernel image. */
 SECTIONS
@@ -24,7 +23,6 @@ SECTIONS
 	   Next we'll put the .text section. */
 	.text BLOCK(4K) : ALIGN(4K)
 	{
-		*(.multiboot)
 		*(.text)
 	}
 
@@ -43,9 +41,19 @@ SECTIONS
 	/* Read-write data (uninitialized) and stack */
 	.bss BLOCK(4K) : ALIGN(4K)
 	{
+		_bss_start = .;
 		*(COMMON)
 		*(.bss)
-		_end = .; /* Defines end at current location, end of kernel code*/
+
+		_stack_bottom = .;
+		. += 16K;
+		_stack_top = .;
+
+		_heap_start = .;
+		. += 1024K;
+		_heap_end = .;
+
+		_bss_end = .; /* Defines end at current location, end of kernel code*/
 	}
 
 	/* The compiler may produce other sections, by default it will put them in

@@ -3,18 +3,16 @@
 dd if=/dev/zero of=disk.img bs=1M count=64
 
 parted disk.img --script mklabel gpt
-parted disk.img --script mkpart primary 1MiB 2MiB
-sudo parted disk.img set 1 bios_grub on
-parted disk.img --script mkpart PYGMALI_OS fat32 2MiB 100%
-sudo losetup -fP disk.img
+parted disk.img --script mkpart PYGMALI_OS fat32 1MiB 100%
 loopdevice=$(sudo losetup --find --show --partscan disk.img) 
-partition=${loopdevice}p2
+partition=${loopdevice}p1
 sudo mkfs.vfat -F 32 "$partition"
 sudo mount "$partition" /mnt
-sudo mkdir -p /mnt/boot/grub
-sudo cp pygmalios.kernel /mnt/boot
-sudo cp grub.cfg /mnt/boot/grub
-sudo grub-install --target=i386-pc --boot-directory=/mnt/boot "$loopdevice"
-sync
+sudo cp pygmali.ker /mnt
+printf '\xB0\x07' > signature
+sudo dd if=signature bs=1 seek=508 of="$partition" #put signature in first sector
+rm signature
+sudo dd if=build/firstsector.o of="$loopdevice" conv=notrunc #replaces mbr
+sudo dd if=build/newboot.o of="$partition" seek=1 conv=notrunc
 sudo umount /mnt
 sudo losetup -d "$loopdevice"

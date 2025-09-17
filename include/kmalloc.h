@@ -18,6 +18,7 @@ extern void* heap_start;
 extern void* heap_end;
 extern char _end;
 void* kmalloc(size_t size);
+void zero_heap();
 void kfree(void* to_be_freed);
 void* krealloc(void* ptr, size_t size);
 #endif

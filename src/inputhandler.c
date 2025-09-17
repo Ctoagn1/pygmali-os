@@ -33,6 +33,7 @@ Command commands[] = {
     {"galatea", cmd_galatea},
     {"heapcheck", cmd_heapcheck},
     {"orpheus", cmd_orpheus},
+    {"crash", cmd_crash},
     {NULL, NULL} //signals end of list
 };
 void store_prev_inputs(){

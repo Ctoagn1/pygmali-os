@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "kmalloc.h"
+#include "string.h"
 size_t strlen(const char* str) 
 {
 	size_t len = 0;
@@ -122,4 +123,36 @@ len);
   if (new == NULL)
     return NULL;
   return (char *) memcpy (new, s, len);
+}
+uint64_t __udivdi3(uint64_t num, uint64_t den) //temporary
+{
+  return __udivmoddi4(num, den, NULL);
+}
+uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem_p)
+{
+  uint64_t quot = 0, qbit = 1;
+
+  if ( den == 0 ) {
+    return 0;			/* If trap returns... */
+  }
+
+  /* Left-justify denominator and count shift */
+  while ( (int64_t)den >= 0 ) {
+    den <<= 1;
+    qbit <<= 1;
+  }
+
+  while ( qbit ) {
+    if ( den <= num ) {
+      num -= den;
+      quot += qbit;
+    }
+    den >>= 1;
+    qbit >>= 1;
+  }
+
+  if ( rem_p )
+    *rem_p = num;
+
+  return quot;
 }
