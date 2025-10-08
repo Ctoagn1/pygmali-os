@@ -11,6 +11,7 @@ int historybuffersize = 4096;
 char* previous_inputs_buffer= NULL;
 int history_position = 0;
 int history_current_size=0;
+
 typedef void (*command_function)(int argc, char** argv);
 typedef struct{
     const char *name;
@@ -34,6 +35,7 @@ Command commands[] = {
     {"heapcheck", cmd_heapcheck},
     {"orpheus", cmd_orpheus},
     {"crash", cmd_crash},
+    {"font", cmd_fonts},
     {NULL, NULL} //signals end of list
 };
 void store_prev_inputs(){

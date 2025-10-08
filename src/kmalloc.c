@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include "string.h"
 #include "printf.h"
-
 void *heap_start=NULL;
 void *heap_end=NULL;
 typedef struct block_header{
@@ -59,7 +58,7 @@ void* kmalloc(size_t size){
     return (void*)(new_block+1);
 }
 void kfree(void* to_be_freed){
-    if(!to_be_freed || ((char*)to_be_freed<(char*)heap_start || ((char*)to_be_freed)>((char*)heap_end)-sizeof(block_header))){
+    if(!to_be_freed || ((int*)to_be_freed<(int*)heap_start || ((int*)to_be_freed)>((int*)heap_end)-sizeof(block_header))){
         printf("INVALID FREE %p", to_be_freed);
         return;
     }

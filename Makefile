@@ -13,7 +13,7 @@ OBJS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(C_SRCS)) $(OBJDIR)/gdtfind.o $(
 KERNEL = pygmali.ker
 ISO_DIR = isodir
 
-CFLAGS = -std=gnu99 -ffreestanding -O0 -Wall -Wextra -I$(INCDIR)
+CFLAGS = -std=gnu99 -ffreestanding -O0 -g -Wall -Wextra -I$(INCDIR)
 LDFLAGS = -T linker.ld -ffreestanding -O0 -nostdlib -lgcc
 AFLAGS = -f elf32
 
@@ -22,7 +22,7 @@ AFLAGS = -f elf32
 all: $(KERNEL)
 $(info OBJS = $(OBJS))
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
-	$(CCOM) $(CFLAGS) -c $< -o $@
+	bear -- $(CCOM) $(CFLAGS) -c $< -o $@
 
 
 $(OBJDIR)/gdtfind.o: $(ASRCDIR)/gdtfind.s | $(OBJDIR)

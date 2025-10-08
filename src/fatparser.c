@@ -99,7 +99,6 @@ DirectoryListing directory_parse(int cluster_num){ //caller must free result.ent
     return result;
 }
 char* filename_to_plaintext(unsigned char *filename){ //caller must free file_plaintext
-    to_uppercase(filename);
     char* file_plaintext = kmalloc(FAT_NAME_LENGTH+2); //+2 for null terminator and period
     if(!file_plaintext) return NULL;
     memset(file_plaintext, 0, FAT_NAME_LENGTH+2);
@@ -165,7 +164,6 @@ char* file_contents(char* filename){
         for(int i=0; i<sectors_per_cluster; i++){
             read_sector(current_sector+i, sectordata);
             for(int j=0; j<512; j++){
-                if(sectordata[j]=='\0') continue;
                 bytes_written++;
                 contents_buffer[(clusternum*sectors_per_cluster*512)+(i*512)+j]=sectordata[j];
             }
@@ -188,7 +186,6 @@ unsigned char* plaintext_to_filename(char* filename){ //caller must free file_fa
         return NULL;
     }
     if(strlen(filename)==0) return NULL;
-    to_uppercase(filename);
     unsigned char* file_fatname = kmalloc(FAT_NAME_LENGTH);
     if(!file_fatname) return NULL;
     memset(file_fatname, ' ', FAT_NAME_LENGTH);
@@ -311,8 +308,8 @@ int file_path_destination(char* input_dir){
     return current_cluster;
 }
 int write_to_file(char* contents, int byte_size, char* filename){
-    int padded_len=byte_size+((sectors_per_cluster*512)-byte_size%(sectors_per_cluster*512));
-    if(byte_size%(512*sectors_per_cluster)==0) padded_len=byte_size;
+    int cluster_bytes = sectors_per_cluster*512;
+    int padded_len=((byte_size+cluster_bytes-1)/cluster_bytes)*cluster_bytes;
     char* padded_contents=kmalloc(padded_len);
     if(!padded_contents) return -1;
     memset(padded_contents, 0, padded_len);
@@ -602,7 +599,6 @@ int check_attributes(char* filename){
     return attribute;
 }
 void normalize_path(char *path){
-    to_uppercase(path);
     char *src = path;
     char *dst = path;
     char *segments[64];

@@ -5,6 +5,7 @@ extern write_to_buffer
 extern update_time
 extern pit_timer
 extern exception_handler
+extern page_fault_display
 align   4
 global exception_0_wrapper
 global exception_1_wrapper
@@ -27,7 +28,17 @@ global exception_18_wrapper
 global exception_19_wrapper
 global exception_20_wrapper
 global exception_21_wrapper
+global enable_paging
 [BITS 32]
+enable_paging:
+    push eax
+    mov eax, [esp+8]
+    mov cr3, eax
+    mov eax, cr0
+    or eax, 0x80000000
+    mov cr0, eax
+    pop eax
+    ret
 write_to_buffer_wrapper:
     pushad
     cld     ;C code following the sysV ABI requires DF to be clear on function entry
@@ -162,6 +173,10 @@ exception_13_wrapper:
     popad
     iret
 exception_14_wrapper:
+    mov eax, cr2
+    push eax
+    call page_fault_display
+    pop eax 
     pushad
     push 14
     push esp

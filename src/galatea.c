@@ -14,19 +14,19 @@ uint64_t text_buffer_pos;
 uint64_t text_buffer_size;
 int startline;
 char* outputfile = NULL;
-uint16_t* old_screen;
+uint32_t* old_screen;
 char* extra_info = NULL;
 int init_editor(char* filename){
 	char* fatname = plaintext_to_filename(filename);
 	if(!fatname) return -1;
 	kfree(fatname);
-	old_screen = kmalloc(VGA_WIDTH*VGA_HEIGHT*2);
-	memcpy(old_screen, terminal_buffer, VGA_WIDTH*VGA_HEIGHT*2);
+	old_screen = kmalloc(textbuffer_width*textbuffer_height*sizeof(uint32_t));
+	memcpy(old_screen, terminal_buffer, textbuffer_width*textbuffer_height*sizeof(uint32_t));
 	terminal_initialize();
 	mode=2;
-	terminal_row=VGA_HEIGHT-2;
+	terminal_row=textbuffer_height-2;
 	terminal_column=0;
-	for(int i=0; i<VGA_WIDTH; i++){
+	for(int i=0; i<textbuffer_width; i++){
 		terminal_putchar('-');
 	}
 	terminal_writestring("~galatea~        ctrl+w: write ^q:quit ^s write+quit        ");
@@ -65,7 +65,7 @@ int write_editor_buffer(){
 }
 void exit_editor(){
 	mode=1;
-	memmove(terminal_buffer, old_screen, VGA_WIDTH*VGA_HEIGHT*2);
+	memmove(terminal_buffer, old_screen, textbuffer_width*textbuffer_height*sizeof(uint32_t));
 	kfree(old_screen);
 	kfree(outputfile);
 	kfree(text_buffer);
@@ -172,7 +172,7 @@ Text_Lines assign_line_starts(){
 		if(text_buffer[i]=='\t'){
 			line_len+=4-line_len%4;
 		}
-		if(line_len>=VGA_WIDTH-1){
+		if(line_len>=textbuffer_width-1){
 			lines++;
 			text.line_starts=krealloc(text.line_starts, lines*sizeof(int));
 			text.line_starts[lines-1]=i+1;
@@ -194,7 +194,7 @@ Text_Lines assign_line_starts(){
 int update_to_screen(){
 	int cursorpos = get_cursor_line();
 	if(cursorpos<startline) startline=cursorpos;
-	if(cursorpos>=startline+(VGA_HEIGHT-2)) startline=cursorpos-(VGA_HEIGHT-3);
+	if(cursorpos>=startline+(textbuffer_height-2)) startline=cursorpos-(textbuffer_height-3);
 	int text_length=0;
 	int row=0;
 	int col=0;
@@ -205,7 +205,7 @@ int update_to_screen(){
 		return -1;
 	}
 	int startchar = text.line_starts[startline];
-	int screensize = (VGA_WIDTH*(VGA_HEIGHT-2)); //saving 2 rows for instructions
+	int screensize = (textbuffer_width*(textbuffer_height-2)); //saving 2 rows for instructions
 	char* screenbuffer = kmalloc(screensize);
 	if(!screenbuffer){
 		kfree(text.line_starts);
@@ -222,7 +222,7 @@ int update_to_screen(){
 
 		if(startchar+buffer_length>= char_len) break;
 		if(text_buffer[startchar+buffer_length]=='\n'){
-			int len = VGA_WIDTH-text_length%VGA_WIDTH;
+			int len = textbuffer_width-text_length%textbuffer_width;
 			col=0;
 			row++;
 			for(int i=0; i<len; i++){
@@ -233,7 +233,7 @@ int update_to_screen(){
 			buffer_length++;
 		}
 		if(text_buffer[startchar+buffer_length]=='\t'){
-			int len = 4-(text_length%VGA_WIDTH)%4;
+			int len = 4-(text_length%textbuffer_width)%4;
 			col+=len;
 			for(int i=0; i<len; i++){
 				if (text_length >= screensize) break;
@@ -248,7 +248,7 @@ int update_to_screen(){
 			buffer_length++;
 			col++;
 		}
-		if(col>=VGA_WIDTH){
+		if(col>=textbuffer_width){
 			col=0;
 			row++;
 		}
@@ -258,9 +258,9 @@ int update_to_screen(){
 	for(int i=0; i<screensize; i++){
 		terminal_putchar(screenbuffer[i]);
 	}
-	terminal_row=VGA_HEIGHT-2;
+	terminal_row=textbuffer_height-2;
 	terminal_column=0;
-	for(int i=0; i<VGA_WIDTH; i++){
+	for(int i=0; i<textbuffer_width; i++){
 		terminal_putchar('-');
 	}
 	terminal_writestring("~galatea~        ctrl+w:write ctrl+q:quit ctrl+s:write+quit        ");

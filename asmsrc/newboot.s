@@ -3,11 +3,43 @@ section .text
 org 0x9000
 [BITS 16]
     cli
+    call load_mem_map
+    pushad ;this is necessary for some reason. vbe_set_mode clobbers an important register apparently and tbh id rather just do this than try to figure out which
+    mov ax, 1280 ;width
+    mov bx, 1024 ;height
+    mov cl, 32 ;bits per pixel
+    call vbe_set_mode
+    cli
+    popad 
     lgdt [gdt_descriptor]
     mov eax,cr0
     or eax,1 ;enable protected mode bit of control register
     mov cr0,eax 
     jmp 0x08:protected_mode_entry ;0x08 = code segment
+
+load_mem_map:
+    pushad ;something about this function screwed up the register state so i added this
+    mov bx, 0x1000
+    mov es, bx
+    xor ebx, ebx ;bios loads map at es:di
+    mov di, 4
+    mov dword [es:0], 0 ;num of entries map
+load_entry:
+    mov eax, 0xE820 ; setup for bios call
+    mov ecx, 24
+    mov edx, 0x534D4150
+    int 0x15 ; query bios for memory map
+    jc end_map ;carry called when unsuccessful/end of list
+    cmp ebx, 0; could also set ebx to 0 at end of list
+    je end_map
+    mov eax, [es:0]
+    inc eax
+    mov [es:0], eax
+    add di, 24
+    jmp load_entry
+end_map:
+    popad
+    ret
 
 [BITS 32]
 protected_mode_entry:
@@ -310,3 +342,154 @@ waitloop:
     out dx, al
     mov al, ah
     ret
+
+[BITS 16]
+; this code taken/modified from https:;wiki.osdev.org/VESA_Video_Modes
+
+vbe_set_mode:
+	mov [.width], ax
+	mov [.height], bx
+	mov [.bpp], cl
+    xor ax, ax
+    mov es, ax
+
+	sti
+
+	push es					; some VESA BIOSes destroy ES, or so I read
+	mov ax, 0x4F00				; get VBE BIOS info
+	mov di, vbe_info_block
+	int 0x10
+	pop es
+
+	cmp ax, 0x4F				; BIOS doesn't support VBE?
+	jne .error
+
+	mov ax, word[vbe_info_block+vbe_info_structure.video_modes]
+	mov [.offset], ax
+	mov ax, word[vbe_info_block+vbe_info_structure.video_modes+2]
+	mov [.segment], ax
+
+	mov ax, [.segment]
+	mov fs, ax
+	mov si, [.offset]
+
+.find_mode:
+	mov dx, [fs:si]
+	add si, 2
+	mov [.offset], si
+	mov [.mode], dx
+	mov ax, 0
+	mov fs, ax
+
+	cmp word [.mode], 0xFFFF			; end of list?
+	je .error
+
+	push es
+	mov ax, 0x4F01				; get VBE mode info
+	mov cx, [.mode]
+	mov di, mode_info_block
+	int 0x10
+	pop es
+
+	cmp ax, 0x4F
+	jne .error
+
+	mov ax, [.width]
+	cmp ax, [mode_info_block+vbe_mode_info_structure.width]
+	jne .next_mode
+
+	mov ax, [.height]
+	cmp ax, [mode_info_block+vbe_mode_info_structure.height]
+	jne .next_mode
+
+	mov al, [.bpp]
+	cmp al, [mode_info_block+vbe_mode_info_structure.bpp]
+	jne .next_mode
+
+	; If we make it here, we've found the correct mode!
+	; Set the mode
+	push es
+	mov ax, 0x4F02
+	mov bx, [.mode]
+	or bx, 0x4000			; enable LFB
+	mov di, 0			; not sure if some BIOSes need this... anyway it doesn't hurt
+	int 0x10
+	pop es
+
+	cmp ax, 0x4F
+	jne .error
+
+	clc
+	ret
+
+.next_mode:
+	mov ax, [.segment]
+	mov fs, ax
+	mov si, [.offset]
+	jmp .find_mode
+
+.error:
+	stc
+	ret
+
+.width				dw 0
+.height				dw 0
+.bpp				db 0
+.segment			dw 0
+.offset				dw 0
+.mode				dw 0
+struc vbe_info_structure
+     .signature resd 1	; must be "VESA" to indicate valid VBE support
+	 .version resw 1;			; VBE version; high byte is major version, low byte is minor version
+	 .oem resd 1;			; segment:offset pointer to OEM
+	.capabilities resd 1;		; bitfield that describes card capabilities
+	.video_modes resd 1;		; segment:offset pointer to list of supported video modes
+	 .video_memory resw 1;		; amount of video memory in 64KB blocks
+	 .software_rev resw 1;		; software revision
+	 .vendor resd 1;			; segment:offset to card vendor string
+	 .product_name resd 1;		; segment:offset to card model name
+	 .product_rev resd 1;		; segment:offset pointer to product revision
+	 .reserved resb 222;		; reserved for future expansion
+	 .oem_data resb 256		; OEM BIOSes store their strings in this area
+endstruc
+struc vbe_mode_info_structure 
+	 .attributes resw 1;		; deprecated, only bit 7 should be of interest to you, and it indicates the mode supports a linear frame buffer.
+	 .window_a resb 1;			; deprecated
+	 .window_b resb 1;			; deprecated
+	 .granularity resw 1;		; deprecated; used while calculating bank numbers
+	 .window_size resw 1;
+	 .segment_a resw 1;
+	 .segment_b resw 1;
+	 .win_func_ptr resd 1;		; deprecated; used to switch banks from protected mode without returning to real mode
+	 .pitch resw 1;			; number of bytes per horizontal line
+	 .width resw 1;			; width in pixels
+	 .height resw 1;			; height in pixels
+	 .w_char resb 1;			; unused...
+	 .y_char resb 1;			; ...
+	 .planes resb 1;
+	 .bpp resb 1;			; bits per pixel in this mode
+	 .banks resb 1;			; deprecated; total number of banks in this mode
+	 .memory_model resb 1;
+	 .bank_size resb 1;		; deprecated; size of a bank, almost always 64 KB but may be 16 KB...
+	 .image_pages resb 1;
+	 .reserved0 resb 1;
+
+	 .red_mask resb 1;
+	 .red_position resb 1;
+	 .green_mask resb 1;
+	 .green_position resb 1;
+	 .blue_mask resb 1
+	 .blue_position resb 1;
+	 .reserved_mask resb 1;
+	 .reserved_position resb 1;
+	 .direct_color_attributes resb 1;
+
+	 .framebuffer resd 1;		; physical address of the linear frame buffer; write here to draw to the screen
+	 .off_screen_mem_off resd 1;
+	 .off_screen_mem_size resw 1;	; size of memory in the framebuffer but not being displayed on the screen
+	 .reserved1 resb 206;
+endstruc
+
+	mode_info_block equ 0xf000
+
+	vbe_info_block equ 0xe000

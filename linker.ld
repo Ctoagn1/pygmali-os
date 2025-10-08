@@ -55,6 +55,7 @@ SECTIONS
 
 		_bss_end = .; /* Defines end at current location, end of kernel code*/
 	}
+	_kernel_endpoint = .;
 
 	/* The compiler may produce other sections, by default it will put them in
 	   a segment with the same name. Simply add stuff here as needed. */

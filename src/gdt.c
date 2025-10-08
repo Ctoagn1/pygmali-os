@@ -108,5 +108,4 @@ void initGdt(){
     setGDT(gdtsize, gdt);
     reloadSegments();
     reloadTSS();
-    terminal_writestring("GDT loaded successfully...\n");
 }

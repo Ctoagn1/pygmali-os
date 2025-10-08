@@ -15,3 +15,4 @@ void cmd_galatea(int argc, char** argv);
 void cmd_heapcheck(int argc, char**argv);
 void cmd_orpheus(int argc, char** argv);
 void cmd_crash(int argc, char ** argv);
+void cmd_fonts(int argc, char ** argv);

@@ -154,3 +154,12 @@ void cmd_orpheus(int argc, char** argv){
 void cmd_crash(int argc, char ** argv){
      asm volatile ("ud2"); //does what you'd think
 }
+void cmd_fonts(int argc, char ** argv){
+    if(argc<2){
+        printf("Usage: Change screen font, available in SYS/FONT");
+        return;
+    }
+    if(reload_fonts(argv[1])==1){
+        printf("Invalid font.");
+    };
+}

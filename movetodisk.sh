@@ -14,5 +14,10 @@ sudo dd if=signature bs=1 seek=508 of="$partition" #put signature in first secto
 rm signature
 sudo dd if=build/firstsector.o of="$loopdevice" conv=notrunc #replaces mbr
 sudo dd if=build/newboot.o of="$partition" seek=1 conv=notrunc
+sudo mkdir -p /mnt/SYS/FONT
+printf '/SYS/FONT/VGA.PSF\0' > FONTDATA
+sudo cp FONTDATA /mnt/SYS/FONT
+rm FONTDATA
+sudo cp -r FONT /mnt/SYS
 sudo umount /mnt
 sudo losetup -d "$loopdevice"

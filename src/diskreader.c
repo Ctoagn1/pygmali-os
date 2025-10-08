@@ -24,7 +24,6 @@
 #include "tty.h"
 #include "string.h"
 #include "kmalloc.h"
-#include "printf.h"
 uint16_t diskinfo[256]={0};//identify returns 512 bytes (or 256 words)
 uint16_t sectorinfo[256]={0};//identify returns 512 bytes (or 256 words)
 uint32_t partition_start=0;
@@ -161,7 +160,6 @@ void scan_gpt(){
 }
 void scan_mbr(){
     scan_gpt();
-    printf("PARTITION: %s LBA RANGE: %d, %d\n", gpt_identifier, partition_start, partition_end);
     return;
 #ifdef RAW_DISK_OVERRIDE
         partition_start=0;
@@ -172,7 +170,6 @@ void scan_mbr(){
     read_sector(0, mbr);
     if(mbr[PARTITION_TABLE_OFFSET+4]==0xEE){ //represents protective GPT mbr
         scan_gpt();
-        printf("PARTITION: %s LBA RANGE: %d, %d\n", gpt_identifier, partition_start, partition_end);
         return;
     }
     return; //TODO- update this logic to read fs data instead of just checking if bootable, for now don't use it
