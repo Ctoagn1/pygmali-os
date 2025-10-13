@@ -26,11 +26,11 @@ For those on Linux who want to regenerate the disk image, `make fs` can be used.
 
 # TO DO: I'm satisfied with the current state of the project for now, but for future additions:
 
--add paging
+-set up 64 bit mode
 
 -add userspace (right now everything operates at ring 0)
 
--possibly create own bootloader rather than relying on grub
+-external binary loading
 
 -add handling for specific exceptions, rather than register dump and kernel panic
 
