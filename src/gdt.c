@@ -3,7 +3,7 @@
 #include "gdt.h"
 #include "tty.h"
 
-uint8_t gdt[GDT_ENTRIES*8];
+uint8_t gdt[GDT_ENTRIES*16];
 uint16_t gdtsize = GDT_ENTRIES*8-1;
 
 typedef struct __attribute__((packed)) TSS{ /*
@@ -55,7 +55,7 @@ typedef struct __attribute__((packed)) TSS{ /*
 TSS tss = {0};
 
 typedef struct GDT{
-    uint32_t base;
+    uint64_t base;
     uint32_t limit;
     uint8_t access_byte;
     uint8_t flags;
@@ -75,12 +75,13 @@ void encodeGdtEntry(uint8_t *target, struct GDT source)
     target[3] = (source.base >> 8) & 0xFF;
     target[4] = (source.base >> 16) & 0xFF;
     target[7] = (source.base >> 24) & 0xFF;
+    target[8] = (uint32_t)(source.base>>32);
     
     // Encode the access byte
     target[5] = source.access_byte;
     
     // Encode the flags
-    target[6] |= (source.flags << 4);
+    target[6] = (source.flags << 4);
 
 }
 
@@ -90,21 +91,21 @@ void initGdt(){
     tss.iopb = sizeof(tss); 
 
     GDT NullDescriptor = {0, 0, 0, 0};
-    GDT KernelCode = {0, 0xFFFFF, 0x9A, 0xC};
-    GDT KernelData = {0, 0xFFFFF, 0x92, 0xC}; /*flags- bit 0 reserved, 
+    GDT KernelCode = {0, 0xFFFFF, 0x9A, 0xA};
+    GDT KernelData = {0, 0xFFFFF, 0x92, 0xA}; /*flags- bit 0 reserved, 
     bit 1 enabled long mode. bit 2 is 16 bit protected when 0, 
     32 bit when 1, bit 3 enables granularity- when 1, limits are measured in 1 byte blocks
     , when 0, 4 KiB blocks */
-    GDT UserCode = {0, 0xFFFFF, 0xFA, 0xC};
-    GDT UserData = {0, 0xFFFFF, 0xF2, 0xC};
-    GDT TaskStateSegment= {(uint32_t)&tss, (uint32_t)sizeof(tss)-1, 0x89, 0x0};
+    GDT UserCode = {0, 0xFFFFF, 0xFA, 0xA};
+    GDT UserData = {0, 0xFFFFF, 0xF2, 0xA};
+    GDT TaskStateSegment= {(uint64_t)&tss, sizeof(tss)-1, 0x89, 0x40};
     
     encodeGdtEntry(&gdt[0], NullDescriptor);
-    encodeGdtEntry(&gdt[8], KernelCode);
-    encodeGdtEntry(&gdt[16], KernelData);
-    encodeGdtEntry(&gdt[24], UserCode);
-    encodeGdtEntry(&gdt[32], UserData);
-    encodeGdtEntry(&gdt[40], TaskStateSegment);
+    encodeGdtEntry(&gdt[16], KernelCode);
+    encodeGdtEntry(&gdt[32], KernelData);
+    encodeGdtEntry(&gdt[48], UserCode);
+    encodeGdtEntry(&gdt[64], UserData);
+    encodeGdtEntry(&gdt[80], TaskStateSegment);
     setGDT(gdtsize, gdt);
     reloadSegments();
     reloadTSS();

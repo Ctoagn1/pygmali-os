@@ -42,6 +42,6 @@ reloadIDT:
    MOV EAX, [ESP + 8]
    MOV [idtr+ 2], EAX
    LIDT [idtr]
-   STI
+   ;STI
    RET
 

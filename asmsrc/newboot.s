@@ -99,34 +99,6 @@ load_kernel:
 
 
 notfound:
-    mov word[0xB8000], 'K' | 0x0F00
-    mov word[0xB8002], 'E' | 0x0F00
-    mov word[0xB8004], 'R' | 0x0F00
-    mov word[0xB8006], 'N' | 0x0F00
-    mov word[0xB8008], 'E' | 0x0F00
-    mov word[0xB800A], 'L' | 0x0F00
-    mov word[0xB800C], ' ' | 0x0F00
-    mov word[0xB800E], 'N' | 0x0F00
-    mov word[0xB8010], 'O' | 0x0F00
-    mov word[0xB8012], 'T' | 0x0F00
-    mov word[0xB8014], ' ' | 0x0F00
-    mov word[0xB8016], 'F' | 0x0F00
-    mov word[0xB8018], 'O' | 0x0F00
-    mov word[0xB801A], 'U' | 0x0F00
-    mov word[0xB801C], 'N' | 0x0F00
-    mov word[0xB801E], 'D' | 0x0F00
-    mov word[0xB8020], ' ' | 0x0F00
-    mov word[0xB8022], 'B' | 0x0F00
-    mov word[0xB8024], 'O' | 0x0F00
-    mov word[0xB8026], 'O' | 0x0F00
-    mov word[0xB8028], 'T' | 0x0F00
-    mov word[0xB802A], ' ' | 0x0F00
-    mov word[0xB802C], 'H' | 0x0F00
-    mov word[0xB802E], 'A' | 0x0F00
-    mov word[0xB8030], 'L' | 0x0F00
-    mov word[0xB8032], 'T' | 0x0F00
-    mov word[0xB8034], 'E' | 0x0F00
-    mov word[0xB8036], 'D' | 0x0F00
     hlt
 
 gdt_start:
@@ -249,9 +221,49 @@ shiftloop:
     add ecx, 4
     cmp ecx, eax
     jl shiftloop
-    jmp ebx
-
+    jmp long_mode_switch
+long_mode_finish:
+[BITS 64]
+    jmp rbx
+[BITS 32]
+long_gdt_start:
+    dq 0x0000000000000000
+    dq 0x00af9a000000ffff ;code
+    dq 0x00cf92000000ffff ;data
+long_gdt_end:
+long_gdt_descriptor:
+    dw long_gdt_end-long_gdt_start-1
+    dd long_gdt_start
+long_mode_switch:
+    cli
+    lgdt [long_gdt_descriptor]
     
+    mov eax, cr4
+    or eax, 0b00100000;PAE bit = 5
+    mov edi, PML4
+    mov ecx, 3*4096/4 ;zero three 4096 byte blocks
+    xor eax, eax
+    rep stosd
+    mov dword [PD], 0x83 ;2 mib page
+    mov dword [PD+8], 0x200083 ;map next 2 mib
+    mov dword [PDPT], 0x102003
+    mov dword [PML4], 0x101003
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov cr4, eax
+    mov eax, PML4
+    mov cr3, eax
+    mov ecx, 0xc0000080 ;modify model specific register with index ECX, in this case EFER
+    rdmsr ;read EFER in EDX:EAX
+    or eax, 1<<8
+    wrmsr
+    mov eax, cr0
+    or eax, 1<<31
+    mov cr0, eax ;paging enabled!
+    jmp 0x08:long_mode_finish
+
 check1:
     inc edi
     jmp end1
@@ -493,3 +505,8 @@ endstruc
 	mode_info_block equ 0xf000
 
 	vbe_info_block equ 0xe000
+
+    PML4 equ 0x100000
+    PDPT equ 0x101000
+    PD equ 0x102000
+    long_stack equ 0x109000

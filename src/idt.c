@@ -7,54 +7,60 @@
 #include "pit.h"
 #include "printf.h"
 
-uint64_t idt[IDT_ENTRIES];
+typedef struct{
+    uint16_t first_offset;
+    uint16_t segment_selector;
+    uint16_t weird_bytes;
+    uint16_t middle_offset;
+    uint32_t ending_offset;
+    uint32_t reserved;
+} IDT_Entry;
+IDT_Entry idt[IDT_ENTRIES];
 typedef struct{
     uint32_t cases, edi, esi, ebp, esp, ebx, edx, ecx, eax; //pushed by pushad in wrapper
 } ExceptionStack;
 
 
-void makeIDTEntry(uint64_t *entry, uint32_t offset, uint16_t selector, uint8_t gate, uint8_t dpl){
+void makeIDTEntry(IDT_Entry *entry, uint64_t offset, uint16_t selector, uint8_t gate, uint8_t dpl){
     //gates- 0101 is task gate- in task gates offset should be 0,
     //0110 is 16 bit interrupt gate, 0111 is 16 bit trap gate. trap gates allow further interrupts when one is being handled
     //1110 is 32 bit interrupt, 1111 is 32 bit trap. dpl is privilege, 0 being kernel 3 being user
-    uint64_t result = 0;
-    result = offset & 0xFFFF; //split offset into first and last 16 bits
-    result = result | (((uint64_t)offset >> 16) << 48);
-    result = result | ((uint32_t)selector << 16); //selector goes in next 16 bits
-    uint64_t weird_bytes = ((uint64_t)gate<<40) | ((uint64_t)dpl<<45) | ((uint64_t)1<<47);
-    result = result | weird_bytes;
-    *entry = result;
+    entry->first_offset=(offset&0xFFFF);
+    entry->segment_selector=selector;
+    entry->middle_offset=((offset>>16)&0xFF);
+    uint16_t weird_bytes=(1<<15)|(gate<<8)|(dpl<<13);
+    entry->weird_bytes=weird_bytes;
+    entry->ending_offset=offset>>32;
 }
 
 void initIdt(){
-    makeIDTEntry(&idt[33], (uint32_t)&write_to_buffer_wrapper, 0x08, 0b1110, 0); //keyboard
-    makeIDTEntry(&idt[40], (uint32_t)&update_time_wrapper, 0x08, 0b1110, 0); //real time clock
-    makeIDTEntry(&idt[32], (uint32_t)&pit_timer_wrapper, 0x08, 0b1110, 0); //programmable interval timer
-    makeIDTEntry(&idt[0], (uint32_t)&exception_0_wrapper, 0x08, 0b1110, 0); 
-    makeIDTEntry(&idt[1], (uint32_t)&exception_1_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[2], (uint32_t)&exception_2_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[3], (uint32_t)&exception_3_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[4], (uint32_t)&exception_4_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[5], (uint32_t)&exception_5_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[6], (uint32_t)&exception_6_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[7], (uint32_t)&exception_7_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[8], (uint32_t)&exception_8_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[9], (uint32_t)&exception_9_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[10], (uint32_t)&exception_10_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[11], (uint32_t)&exception_11_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[12], (uint32_t)&exception_12_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[13], (uint32_t)&exception_13_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[14], (uint32_t)&exception_14_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[16], (uint32_t)&exception_16_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[17], (uint32_t)&exception_17_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[18], (uint32_t)&exception_18_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[19], (uint32_t)&exception_19_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[20], (uint32_t)&exception_20_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[21], (uint32_t)&exception_21_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[33], (uint64_t)&write_to_buffer_wrapper, 0x08, 0b1110, 0); //keyboard
+    makeIDTEntry(&idt[40], (uint64_t)&update_time_wrapper, 0x08, 0b1110, 0); //real time clock
+    makeIDTEntry(&idt[32], (uint64_t)&pit_timer_wrapper, 0x08, 0b1110, 0); //programmable interval timer
+    makeIDTEntry(&idt[0], (uint64_t)&exception_0_wrapper, 0x08, 0b1110, 0); 
+    makeIDTEntry(&idt[1], (uint64_t)&exception_1_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[2], (uint64_t)&exception_2_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[3], (uint64_t)&exception_3_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[4], (uint64_t)&exception_4_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[5], (uint64_t)&exception_5_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[6], (uint64_t)&exception_6_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[7], (uint64_t)&exception_7_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[8], (uint64_t)&exception_8_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[9], (uint64_t)&exception_9_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[10], (uint64_t)&exception_10_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[11], (uint64_t)&exception_11_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[12], (uint64_t)&exception_12_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[13], (uint64_t)&exception_13_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[14], (uint64_t)&exception_14_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[16], (uint64_t)&exception_16_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[17], (uint64_t)&exception_17_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[18], (uint64_t)&exception_18_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[19], (uint64_t)&exception_19_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[20], (uint64_t)&exception_20_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[21], (uint64_t)&exception_21_wrapper, 0x08, 0b1110, 0);
 
 
     reloadIDT(sizeof(idt)-1, (uint32_t)&idt);
-    terminal_writestring("IDT loaded successfully...\n");
 }
 void panic(char *error){
     disable_cursor();

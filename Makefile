@@ -15,7 +15,7 @@ ISO_DIR = isodir
 
 CFLAGS = -std=gnu99 -ffreestanding -O0 -g -Wall -Wextra -I$(INCDIR)
 LDFLAGS = -T linker.ld -ffreestanding -O0 -nostdlib -lgcc
-AFLAGS = -f elf32
+AFLAGS = -f elf32 -g -F dwarf
 
 .PHONY: all clean iso run
 

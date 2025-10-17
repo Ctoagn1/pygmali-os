@@ -21,6 +21,7 @@ void kernel_main()
 	heap_start= (void*)ALIGN16((uint64_t) &_heap_start);
 	heap_end=heap_start+HEAP_SIZE;
 	initGdt();
+	initIdt();
 	PIC_remap(0x20, 0x28);
 	scan_mbr();
 	//paging_setup();
@@ -30,7 +31,6 @@ void kernel_main()
 	terminal_initialize();
 	psf_loader();
 	read_startup_time();
-	initIdt();
 	printf("HEAP BOUNDS: %p, %p\n", heap_start, heap_end);
 	disable_translation();
 	switch_scancode_set(2);
