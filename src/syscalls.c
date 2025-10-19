@@ -10,6 +10,7 @@ typedef struct{
 void syscall_handler(RegStack regs){
     switch(regs.eax){
         case 0: 
+            
     }
 
 }
