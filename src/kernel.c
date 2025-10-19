@@ -14,24 +14,19 @@
 #include "writingmode.h"
 #include "fatparser.h"
 #include "paging.h"
-extern _heap_start;
-#define HEAP_SIZE 1048576 //1 mib
 void kernel_main()
 {
-	heap_start= (void*)ALIGN16((uint64_t) &_heap_start);
-	heap_end=heap_start+HEAP_SIZE;
 	initGdt();
 	PIC_remap(0x20, 0x28);
 	scan_mbr();
-	//paging_setup();
+	paging_setup();
+	initIdt();
 	read_boot_record();
 	/* Initialize terminal interface */
 	set_hertz(1000);
 	terminal_initialize();
 	psf_loader();
 	read_startup_time();
-	initIdt();
-	printf("HEAP BOUNDS: %p, %p\n", heap_start, heap_end);
 	disable_translation();
 	switch_scancode_set(2);
 	display_time();

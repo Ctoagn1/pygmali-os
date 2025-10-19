@@ -7,6 +7,9 @@ void reserve_address(uint32_t start, uint32_t end);
 uint32_t alloc_page();
 uint32_t alloc_raw_page();
 void free_raw_page(uint32_t addr);
-uint32_t map_page(uint32_t physaddr);
+uint32_t map_page(uint32_t virtaddr, uint32_t physaddr);
 void free_page(uint32_t addr);
 void unreserve_address(uint32_t start, uint32_t end);
+uint32_t* get_page_table_virtual(uint32_t dir_index);
+
+void create_new_table(uint32_t addr);

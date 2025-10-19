@@ -14,9 +14,6 @@ typedef struct Heap_Info{
 } Heap_Info;
 
 Heap_Info heap_stats();
-extern void* heap_start; 
-extern void* heap_end;
-extern char _end;
 void* kmalloc(size_t size);
 void zero_heap();
 void kfree(void* to_be_freed);

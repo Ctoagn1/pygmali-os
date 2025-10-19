@@ -5,7 +5,8 @@ extern write_to_buffer
 extern update_time
 extern pit_timer
 extern exception_handler
-extern page_fault_display
+extern syscall_handler
+extern page_fault_handler
 align   4
 global exception_0_wrapper
 global exception_1_wrapper
@@ -29,6 +30,7 @@ global exception_19_wrapper
 global exception_20_wrapper
 global exception_21_wrapper
 global enable_paging
+global syscall_handler_wrapper
 [BITS 32]
 enable_paging:
     push eax
@@ -173,16 +175,16 @@ exception_13_wrapper:
     popad
     iret
 exception_14_wrapper:
+    pushad
+    mov eax, [esp+32]
+    push eax
     mov eax, cr2
     push eax
-    call page_fault_display
-    pop eax 
-    pushad
-    push 14
-    push esp
     cld
-    call exception_handler
+    call page_fault_handler
+    add esp, 8 ;error code and page 
     popad
+    add esp, 4
     iret
 exception_16_wrapper:
     pushad
@@ -230,5 +232,10 @@ exception_21_wrapper:
     push esp
     cld
     call exception_handler
+    popad
+    iret
+syscall_handler_wrapper:
+    pushad
+    call syscall_handler
     popad
     iret

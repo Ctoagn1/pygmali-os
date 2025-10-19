@@ -3,6 +3,16 @@
 #include "string.h"
 #include "tty.h"
 #include "pit.h"
+typedef struct{
+    uint32_t cases, edi, esi, ebp, esp, ebx, edx, ecx, eax; //pushed by pushad in wrapper
+} RegStack;
+
+void syscall_handler(RegStack regs){
+    switch(regs.eax){
+        case 0: 
+    }
+
+}
 KeyEvent syscall_get_key(){
     KeyEvent event = {0};
     get_keyevent(&event);
@@ -16,17 +26,14 @@ _Bool* syscall_get_key_array(){ //for multiple keys at once, or non-ascii like c
     }
     return keyarray;
 }
-void syscall_print_to_screen(char* string){
-    terminal_writestring(string);
-}
-void syscall_print_to_screen_at(char* string, int x, int y){
-    int oldrow = terminal_row;
-    int oldcol = terminal_column;
-    terminal_row = y;
-    terminal_column = x;
-    terminal_writestring(string);
-    terminal_row=oldrow;
-    terminal_column=oldcol;
+void syscall_print_rect(uint32_t* buffer, int topleft_x, int topleft_y, int x_len, int y_len){
+    uint32_t* membuff = (uint32_t*)virtual_framebuffer;
+    uint32_t* startaddr = membuff+topleft_x+(topleft_y*selected_video_mode->width);
+    for(int i=0; i<y_len; i++){
+		for(int j=0; j<x_len; j++){
+				startaddr[j+i*selected_video_mode->width]=buffer[j+i*x_len];
+		}
+	}
 }
 DirectoryListing syscall_read_directory_info(char* absolute_filepath){ //must free list.entries
     int cluster = file_path_destination(absolute_filepath);

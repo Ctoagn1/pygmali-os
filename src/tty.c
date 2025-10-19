@@ -12,46 +12,6 @@
 #include "inputhandler.h"
 #include "writingmode.h"
 #include "fatparser.h"
-
-
-typedef struct{
-	uint16_t attributes;		// deprecated, only bit 7 should be of interest to you, and it indicates the mode supports a linear frame buffer.
-	uint8_t window_a;			// deprecated
-	uint8_t window_b;			// deprecated
-	uint16_t granularity;		// deprecated; used while calculating bank numbers
-	uint16_t window_size;
-	uint16_t segment_a;
-	uint16_t segment_b;
-	uint32_t win_func_ptr;		// deprecated; used to switch banks from protected mode without returning to real mode
-	uint16_t pitch;			// number of bytes per horizontal line
-	uint16_t width;			// width in pixels
-	uint16_t height;			// height in pixels
-	uint8_t w_char;			// unused...
-	uint8_t y_char;			// ...
-	uint8_t planes;
-	uint8_t bpp;			// bits per pixel in this mode
-	uint8_t banks;			// deprecated; total number of banks in this mode
-	uint8_t memory_model;
-	uint8_t bank_size;		// deprecated; size of a bank, almost always 64 KB but may be 16 KB...
-	uint8_t image_pages;
-	uint8_t reserved0;
-
-	uint8_t red_mask;
-	uint8_t red_position;
-	uint8_t green_mask;
-	uint8_t green_position;
-	uint8_t blue_mask;
-	uint8_t blue_position;
-	uint8_t reserved_mask;
-	uint8_t reserved_position;
-	uint8_t direct_color_attributes;
-
-	uint32_t framebuffer;		// physical address of the linear frame buffer; write here to draw to the screen
-	uint32_t off_screen_mem_off;
-	uint16_t off_screen_mem_size;	// size of memory in the framebuffer but not being displayed on the screen
-	uint8_t reserved1[206];
-} Video_Mode_Info;
-
 size_t terminal_row;
 size_t terminal_column;
 size_t input_start_column;
@@ -63,13 +23,13 @@ uint32_t textbuffer_size;
 uint32_t backgroundcolor=0x0;
 uint32_t memory_size;
 char* fontfile;
+const uint32_t virtual_framebuffer = (uint32_t)1021<<22;
 Video_Mode_Info* selected_video_mode = (Video_Mode_Info*)0xf000;
 uint32_t scroll_buffer[EXTRA_TEXT_BUFFER_SIZE];
 _Bool is_input_from_user = 0;
 
 uint32_t textbuffer_height;
 uint32_t textbuffer_width;
-uint32_t* video_memory;
 uint32_t* terminal_buffer;
 uint32_t terminal_color;
 
@@ -110,7 +70,7 @@ int reload_fonts(char* filepath){
 }
 void screen_reset(){
 	for(int i=0; i<(selected_video_mode->width*selected_video_mode->height); i++){
-		((uint32_t*)selected_video_mode->framebuffer)[i]=backgroundcolor;
+		((uint32_t*)virtual_framebuffer)[i]=backgroundcolor;
 	}
 }
 void print_os_name(){
@@ -137,7 +97,7 @@ void reload_buffer(){
 void text_to_pixels(uint32_t index){
 	char text = terminal_buffer[index];
 	uint32_t color  = terminal_buffer[index]>>8;
-	uint32_t* memorybuffer=((uint32_t*)(selected_video_mode->framebuffer));
+	uint32_t* memorybuffer=((uint32_t*)(virtual_framebuffer));
 	uint32_t cols = textbuffer_width; 
     uint32_t cell_x = index % cols;
     uint32_t cell_y = index / cols;

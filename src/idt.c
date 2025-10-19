@@ -6,6 +6,7 @@
 #include "rtc.h"
 #include "pit.h"
 #include "printf.h"
+#include "paging.h"
 
 uint64_t idt[IDT_ENTRIES];
 typedef struct{
@@ -51,10 +52,11 @@ void initIdt(){
     makeIDTEntry(&idt[19], (uint32_t)&exception_19_wrapper, 0x08, 0b1110, 0);
     makeIDTEntry(&idt[20], (uint32_t)&exception_20_wrapper, 0x08, 0b1110, 0);
     makeIDTEntry(&idt[21], (uint32_t)&exception_21_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[80], (uint32_t)&syscall_handler_wrapper, 0x08, 0b1110, 0);
+
 
 
     reloadIDT(sizeof(idt)-1, (uint32_t)&idt);
-    terminal_writestring("IDT loaded successfully...\n");
 }
 void panic(char *error){
     disable_cursor();
@@ -64,9 +66,17 @@ void panic(char *error){
 void print_regs(ExceptionStack *regs){
     printf("REGISTER DUMP\nEAX: %08x\nECX: %08x\nEDX: %08x\nEBX: %08x\nESP: %08x\nEBP: %08x\nESI: %08x\nEDI: %08x\n", regs->eax, regs->ecx, regs->edx, regs->ebx, regs->esp, regs->ebp, regs->esi, regs->edi);
 }
-void page_fault_display(uint32_t page, uint32_t errcode){
-    errcode &= 0b111;
-    printf("ERROR WITH PAGE %08x\n", page);
+void page_fault_handler(uint32_t pageaddr, uint32_t errcode){
+    errcode &= 0b111; //bit 0 is present/not present, bit 1 is 0 read, 1 write, bit 2 is 0 kernel 1 user
+    if(errcode&1==1){ //protection fault
+        panic("PAGE PROTECTION FAULT");
+    }
+    else{
+        alloc_page(pageaddr);
+    }
+return;
+    //printf("ERROR WITH PAGE %08x\n", page);
+    /*
     switch (errcode){
         case 0:
             printf("SUPERVISOR PROCESS READ NON PRESENT PAGE ENTRY\n");
@@ -92,10 +102,9 @@ void page_fault_display(uint32_t page, uint32_t errcode){
         case 7:
             printf("USER PROCESS WROTE PAGE, CAUSED PROTECTION FAULT\n");
             break;
-    }
+    }*/
 }
 void exception_handler(ExceptionStack *regs){
-    print_regs(regs);
     switch (regs->cases){
         case 0:
             panic("DIVIDE BY ZERO");
@@ -140,6 +149,7 @@ void exception_handler(ExceptionStack *regs){
             panic("GENERAL PROTECTION FAULT");
             break;
         case 14:
+            return;
             panic("PAGE FAULT");
             break;
         //case 15 reserved
@@ -162,4 +172,5 @@ void exception_handler(ExceptionStack *regs){
             panic("CONTROL PROTECTION EXCEPTION");
             break;
     }
+    print_regs(regs);
 }
