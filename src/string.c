@@ -9,6 +9,12 @@ size_t strlen(const char* str)
 		len++;
 	return len;
 }
+int max(int a, int b){
+  return (a<b) ? b : a;
+}
+int min(int a, int b){
+  return (a<b) ? a : b;
+}
 int strcmp(const char *s1, const char *s2) {
     while (*s1 && (*s1 == *s2)) {
         s1++;
@@ -123,36 +129,4 @@ len);
   if (new == NULL)
     return NULL;
   return (char *) memcpy (new, s, len);
-}
-uint64_t __udivdi3(uint64_t num, uint64_t den) //temporary
-{
-  return __udivmoddi4(num, den, NULL);
-}
-uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem_p)
-{
-  uint64_t quot = 0, qbit = 1;
-
-  if ( den == 0 ) {
-    return 0;			/* If trap returns... */
-  }
-
-  /* Left-justify denominator and count shift */
-  while ( (int64_t)den >= 0 ) {
-    den <<= 1;
-    qbit <<= 1;
-  }
-
-  while ( qbit ) {
-    if ( den <= num ) {
-      num -= den;
-      quot += qbit;
-    }
-    den >>= 1;
-    qbit >>= 1;
-  }
-
-  if ( rem_p )
-    *rem_p = num;
-
-  return quot;
 }

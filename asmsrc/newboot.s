@@ -239,7 +239,7 @@ finload:
     mul ebx
     shl eax, 9 
     xor ecx, ecx
-    mov ebx, [0x200018]
+    mov ebx, [0x200018] ; entrypoint
 shiftloop:
     mov esi, 0x200000
     add esi, ecx
@@ -249,6 +249,7 @@ shiftloop:
     add ecx, 4
     cmp ecx, eax
     jl shiftloop
+    sub ebx, 0xc0000000
     jmp ebx
 
     

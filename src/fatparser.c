@@ -129,6 +129,11 @@ int get_file_size(uint32_t cluster){
     }
     return size;
 }
+int file_size_from_name(char* filename){
+    File_Location location = get_file_location(filename, FIND_EXISTS);
+    int filesize = get_file_size(location.cluster);
+    return filesize;
+}
 char* file_contents(char* filename){
     int clusternum = 0;
     int bytes_written = 0;

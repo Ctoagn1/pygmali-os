@@ -24,7 +24,7 @@ uint32_t backgroundcolor=0x0;
 uint32_t memory_size;
 char* fontfile;
 const uint32_t virtual_framebuffer = (uint32_t)1021<<22;
-Video_Mode_Info* selected_video_mode = (Video_Mode_Info*)0xf000;
+Video_Mode_Info* selected_video_mode = (Video_Mode_Info*)0xc000f000;
 uint32_t scroll_buffer[EXTRA_TEXT_BUFFER_SIZE];
 _Bool is_input_from_user = 0;
 

@@ -19,4 +19,5 @@ size_t STRLEN (const char *str);
 #endif
 char *strdup (const char *s);
 uint64_t __udivdi3(uint64_t num, uint64_t den);
-uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem_p);
+int max(int a, int b);
+int min(int a, int b);

@@ -18,7 +18,7 @@ uint8_t virt_page_bitmap[MAX_PAGES/8]={0};
 uint8_t table_bitmap[128]={0};
 uint32_t fbuffer_pages=(4*1024*1280+4095)/4096;
 const uint32_t page_size = 4096;
-const Memory_Entry* memory_map_array = (Memory_Entry*)0x10004;
+const Memory_Entry* memory_map_array = (Memory_Entry*)0xc0010004;
 
 void invlpg(unsigned long addr) {
    asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
@@ -26,41 +26,14 @@ void invlpg(unsigned long addr) {
 void paging_setup(){
     set_memory_bitmap();
     reserve_address(0, 0x400000);
-    uint32_t* page_directory=(uint32_t*)alloc_raw_page();
-    memset(page_directory, 0, 4096);
-    page_directory[1023]=(uint32_t)page_directory | 3; //recursive mapping
-    page_directory[1021]=alloc_raw_page() | 3; //for video buffer
-    page_directory[1022]=alloc_raw_page() | 3; //unfortunately video buffer is slightly larger than a page table, so need 2 
-    uint32_t aligned_fbuffer =selected_video_mode->framebuffer-(selected_video_mode->framebuffer%4096);
-    for(int i=0; i<fbuffer_pages; i++){
-        if(i<1024){
-            uint32_t* video_page_table = (uint32_t*)(page_directory[1021]&0xfffff000);
-            video_page_table[i]= (aligned_fbuffer+i*4096)|0x3;
-        }
-        else{
-            uint32_t* video_page_table = (uint32_t*)(page_directory[1022]&0xfffff000);
-            video_page_table[i-1024]= (aligned_fbuffer+i*4096)|0x3;
-        }
-    }
+    reserve_address(selected_video_mode->framebuffer, selected_video_mode->framebuffer+selected_video_mode->bpp*selected_video_mode->width+selected_video_mode->height);
     memset(virt_page_bitmap, 0xFF, sizeof(virt_page_bitmap));
-    create_page_tables(page_directory);
-    enable_paging(page_directory);
+    memset(get_page_table_virtual(0)[0], 0, 4096); //unmap original identity mapping
 }
 uint32_t* get_page_table_virtual(uint32_t dir_index){
    return (uint32_t*)(0xFFC00000+dir_index*page_size);
 }
-void create_page_tables(uint32_t* page_directory){
-    uint32_t* first_page_table = (uint32_t*)alloc_raw_page();
-    unreserve_address(0, 0x400000);
-    memset(first_page_table, 0, 4096);
-    for(int i=0; i<1024; i++){
-        first_page_table[i]=(i*0x1000)|0x3; //supervisor, write-enabled, present
-        page_bitmap[i/8]&=~(1<<(i%8));
-        virt_page_bitmap[i/8]&=~(1<<(i%8));
-    }
-    page_directory[0]=((uint32_t)first_page_table)|3;
 
-}
 void set_memory_bitmap(){
     const uint32_t memory_map_length = *((uint32_t*)0x10000);
     for(int i=0; i<memory_map_length; i++){

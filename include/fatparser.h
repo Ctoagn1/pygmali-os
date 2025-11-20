@@ -65,3 +65,4 @@ char* file_contents(char* filename);
 int create_file(char* filename, FileType type);
 int extend_file(int cluster);
 int write_to_file(char* contents, int byte_size, char* filename);
+int file_size_from_name(char* filename);

@@ -68,7 +68,7 @@ void print_regs(ExceptionStack *regs){
 }
 void page_fault_handler(uint32_t pageaddr, uint32_t errcode){
     errcode &= 0b111; //bit 0 is present/not present, bit 1 is 0 read, 1 write, bit 2 is 0 kernel 1 user
-    if(errcode&1==1){ //protection fault
+    if((errcode&1)==1){ //protection fault
         panic("PAGE PROTECTION FAULT");
     }
     else{
