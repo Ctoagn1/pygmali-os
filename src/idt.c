@@ -2,6 +2,7 @@
 #define IDT_ENTRIES 256
 #include "keyboardhandler.h"
 #include "idt.h"
+#include <stdbool.h>
 #include "tty.h"
 #include "rtc.h"
 #include "pit.h"
@@ -66,44 +67,7 @@ void panic(char *error){
 void print_regs(ExceptionStack *regs){
     printf("REGISTER DUMP\nEAX: %08x\nECX: %08x\nEDX: %08x\nEBX: %08x\nESP: %08x\nEBP: %08x\nESI: %08x\nEDI: %08x\n", regs->eax, regs->ecx, regs->edx, regs->ebx, regs->esp, regs->ebp, regs->esi, regs->edi);
 }
-void page_fault_handler(uint32_t pageaddr, uint32_t errcode){
-    errcode &= 0b111; //bit 0 is present/not present, bit 1 is 0 read, 1 write, bit 2 is 0 kernel 1 user
-    if((errcode&1)==1){ //protection fault
-        panic("PAGE PROTECTION FAULT");
-    }
-    else{
-        alloc_page(pageaddr);
-    }
-return;
-    //printf("ERROR WITH PAGE %08x\n", page);
-    /*
-    switch (errcode){
-        case 0:
-            printf("SUPERVISOR PROCESS READ NON PRESENT PAGE ENTRY\n");
-            break;
-        case 1:
-            printf("SUPERVISOR PROCESS READ PAGE, CAUSED PROTECTION FAULT\n");
-            break;
-        case 2:
-            printf("SUPERVISOR PROCESS WROTE NON PRESENT PAGE ENTRY\n");
-            break;
-        case 3:
-            printf("SUPERVISOR PROCESS WROTE PAGE, CAUSED PROTECTION FAULT\n");
-            break;
-        case 4:
-            printf("USER PROCESS READ NON PRESENT PAGE ENTRY\n");
-            break;
-        case 5:
-            printf("USER PROCESS READ PAGE, CAUSED PROTECTION FAULT\n");
-            break;
-        case 6:
-            printf("USER PROCESS WROTE NON PRESENT PAGE ENTRY\n");
-            break;
-        case 7:
-            printf("USER PROCESS WROTE PAGE, CAUSED PROTECTION FAULT\n");
-            break;
-    }*/
-}
+
 void exception_handler(ExceptionStack *regs){
     switch (regs->cases){
         case 0:

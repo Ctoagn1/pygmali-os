@@ -1,3 +1,5 @@
+#ifndef CMDS
+#define CMDS
 #include "inputhandler.h"
 void cmd_echo(int argc, char **argv);//char **argv);
 void cmd_help(int argc, char **argv);//char **argv); only static memory for now
@@ -16,3 +18,4 @@ void cmd_heapcheck(int argc, char**argv);
 void cmd_orpheus(int argc, char** argv);
 void cmd_crash(int argc, char ** argv);
 void cmd_fonts(int argc, char ** argv);
+#endif

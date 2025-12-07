@@ -8,7 +8,8 @@
 #define PIC_READ_IRR 0x0a    /* OCW3 irq ready next CMD read */
 #define PIC_READ_ISR 0x0b    /* OCW3 irq service next CMD read */
 #include "io.h"
-
+uint8_t masked_io1 = 0b11111001;
+uint8_t masked_io2 = 0b11111110;
 void PIC_sendEOI(uint8_t irq)
 {
 	if(irq >= 8)
@@ -67,8 +68,12 @@ void PIC_remap(int offset1, int offset2)
 	//outb(PIC1_DATA, 0);
 	//outb(PIC2_DATA, 0);
     // Keyboard,real time clock,pit 2nd byte on for cascade with slave pic
-    outb(PIC1_DATA, 0b11111000);
-    outb(PIC2_DATA, 0b1111110);
+    outb(PIC1_DATA, 0b11111001);
+    outb(PIC2_DATA, 0b11111110);
+}
+void unmask_timer(){
+    masked_io1 &= 0b11111110;
+    outb(PIC1_DATA, masked_io1);
 }
 void pic_disable(void) { //To use processor's APIC, the PIC must be disabled.
     outb(PIC1_DATA, 0xff);

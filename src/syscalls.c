@@ -1,13 +1,5 @@
-#include "keyboardhandler.h"
-#include "fatparser.h"
-#include "string.h"
-#include "tty.h"
-#include "pit.h"
-#include <stdbool.h>
-#define KERNEL_BASE 0xC0000000
-typedef struct{
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax; //pushed by pushad in wrapper
-} RegStack;
+
+#include "syscalls.h"
 
 void syscall_handler(RegStack* regs){
     int call_num = regs->eax;
@@ -16,15 +8,20 @@ void syscall_handler(RegStack* regs){
     void* input_buffer = regs->edx;
     switch(call_num){
         case 0: 
+            if (!is_user_address((uint32_t)dest, buffersize)) return;
             syscall_get_key(dest, buffersize);
         case 1:
+            if (!is_user_address((uint32_t)dest, buffersize)) return;
             syscall_get_key_array(dest, buffersize);
         case 2:
             syscall_print_rect(regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
         case 3:
+            if (!is_user_address((uint32_t)dest, buffersize)) return;
             syscall_read_directory_names(input_buffer, dest, buffersize);
         case 4:
+            if (!is_user_address((uint32_t)dest, buffersize)) return;
             syscall_read(input_buffer, dest, buffersize);
+            regs->eax=file_size_from_name(input_buffer);
         case 5:
             syscall_write(dest, buffersize, input_buffer);
         case 6:
@@ -40,7 +37,7 @@ void syscall_handler(RegStack* regs){
     return;
 
 }
-_Bool is_user_address(uint32_t addr, uint32_t len){
+bool is_user_address(uint32_t addr, uint32_t len){
     if(addr>=KERNEL_BASE) return false;
     if(addr+len-1>=KERNEL_BASE) return false;
     return true;
@@ -48,6 +45,7 @@ _Bool is_user_address(uint32_t addr, uint32_t len){
 
 
 void syscall_get_key(void* dest, int buffersize){
+    
     KeyEvent event = {0};
     get_keyevent(&event);
     memcpy(dest, &event, min(buffersize, sizeof(KeyEvent)));
@@ -59,7 +57,7 @@ void syscall_get_key_array(void* dest, int buffersize){ //for multiple keys at o
     for(int i=0; i<sizeof(key_state)/sizeof(_Bool); i++){
         keyarray[i] = key_state[i];
     }
-    memcpy(dest, &keyarray, min(buffersize, sizeof(KEYBOARD_SIZE*sizeof(_Bool))));
+    memcpy(dest, keyarray, min(buffersize, sizeof(KEYBOARD_SIZE*sizeof(_Bool))));
     kfree(keyarray);
     return;
 }
@@ -80,11 +78,11 @@ void syscall_print_rect(uint32_t* buffer, int topleft_x, int topleft_y, int x_le
 }*/
 void syscall_read_directory_names(char* absolute_filepath, void* dest, int buffersize){ //must free filenames
     int cluster = file_path_destination(absolute_filepath);
-    if(cluster<2) return NULL;
+    if(cluster<2) return;
     DirectoryListing file_list = directory_parse(cluster);
     char* names = names_from_directory(file_list);
     kfree(file_list.entries);
-    memcpy(dest, names, min(buffersize, strlen(names)));
+    memcpy(dest, names, min(buffersize, strlen(names)+1));
     kfree(names);
     return;
 }

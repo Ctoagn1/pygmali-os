@@ -23,6 +23,7 @@ void kernel_main()
 	initIdt();
 	read_boot_record();
 	/* Initialize terminal interface */
+	unmask_timer();
 	set_hertz(1000);
 	terminal_initialize();
 	psf_loader();

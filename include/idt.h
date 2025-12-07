@@ -4,7 +4,6 @@
 void reloadIDT(uint16_t size, uint32_t offset);
 void initIdt();
 void panic(char *error);
-#endif
 void exception_0_wrapper();
 void exception_1_wrapper();
 void exception_2_wrapper();
@@ -26,5 +25,5 @@ void exception_18_wrapper();
 void exception_19_wrapper();
 void exception_20_wrapper();
 void exception_21_wrapper();
-void page_fault_handler(uint32_t page, uint32_t errcode);
 void syscall_handler_wrapper();
+#endif

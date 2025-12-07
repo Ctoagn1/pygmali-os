@@ -109,3 +109,7 @@ void initGdt(){
     reloadSegments();
     reloadTSS();
 }
+void updateTSSesp(uint32_t esp0){
+    tss.esp0 = esp0;
+    reloadTSS();
+}

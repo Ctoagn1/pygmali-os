@@ -8,5 +8,5 @@ void setGDT(uint16_t size, void *base);
 void reloadSegments(void);
 void reloadTSS(void);
 void initGdt();
-
+void updateTSSesp(uint32_t esp0);
 #endif

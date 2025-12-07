@@ -16,8 +16,9 @@ uint64_t merge_bytes(uint8_t* bytes, int length);
 void to_uppercase(char* s); 
 int strncmp(const char *s1, const char *s2, register size_t n);
 size_t STRLEN (const char *str);
-#endif
+
 char *strdup (const char *s);
 uint64_t __udivdi3(uint64_t num, uint64_t den);
 int max(int a, int b);
 int min(int a, int b);
+#endif

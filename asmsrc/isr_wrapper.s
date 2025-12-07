@@ -30,6 +30,7 @@ global exception_19_wrapper
 global exception_20_wrapper
 global exception_21_wrapper
 global enable_paging
+global context_switch
 global syscall_handler_wrapper
 [BITS 32]
 enable_paging:
@@ -237,5 +238,8 @@ exception_21_wrapper:
 syscall_handler_wrapper:
     pushad
     call syscall_handler
+    popad
+    iret
+context_switch:
     popad
     iret

@@ -10,4 +10,5 @@ void disable_interrupts();
 void enable_interrupts();
 void IRQ_set_mask(uint8_t IRQline);
 void IRQ_clear_mask(uint8_t IRQline);
+void unmask_timer();
 #endif

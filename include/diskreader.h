@@ -1,3 +1,5 @@
+#ifndef DISKREAD
+#define DISKREAD
 #include <stdint.h>
 #include <stddef.h>
 uint16_t* disk_info();
@@ -6,3 +8,4 @@ int write_sector(uint32_t sector, uint8_t* sector_data);
 extern uint32_t partition_start;
 extern uint32_t partition_end;
 void scan_mbr();
+#endif

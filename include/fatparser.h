@@ -1,4 +1,5 @@
-
+#ifndef FATPARSE
+#define FATPARSE
 #include "diskreader.h"
 #include "string.h"
 #include "kmalloc.h"
@@ -66,3 +67,4 @@ int create_file(char* filename, FileType type);
 int extend_file(int cluster);
 int write_to_file(char* contents, int byte_size, char* filename);
 int file_size_from_name(char* filename);
+#endif
