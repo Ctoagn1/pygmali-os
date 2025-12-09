@@ -52,7 +52,7 @@ fs: $(KERNEL)
 	./movetodisk.sh
 
 run : 
-	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -drive file=disk.img,format=raw
+	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -drive file=disk.img,format=raw -s -S
 
 clean:
 	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pygmalios.iso

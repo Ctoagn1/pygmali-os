@@ -19,10 +19,10 @@ ALIGN 4096
 page_dir:
 dd temp_identity_map + 3 - virtual_offset
 times 767 dd 0
-dd high_page_table + 3 - virtual_offset
+dd high_page_table + 131 - virtual_offset
 times 252 dd 0
-dd framebuffer_1 + 3 - virtual_offset
-dd framebuffer_2 + 3 - virtual_offset
+dd framebuffer_1 + 131 - virtual_offset
+dd framebuffer_2 + 131 - virtual_offset
 dd page_dir + 3 - virtual_offset ;recursive mapping
 high_page_table:
 times 1024 dd 0
@@ -71,8 +71,10 @@ mov cr3, eax
 mov eax, cr0
 or eax, 0x80000000
 mov cr0, eax
-
-
+jmp high_mapping + virtual_offset
+mov eax, cr4
+or eax, 0b10000000 ; enable global pages
+high_mapping:
 call kernel_main
 err:
     cli

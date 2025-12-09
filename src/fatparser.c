@@ -134,6 +134,7 @@ int file_size_from_name(char* filename){
     int filesize = get_file_size(location.cluster);
     return filesize;
 }
+
 char* file_contents(char* filename){
     int clusternum = 0;
     int bytes_written = 0;
@@ -183,9 +184,9 @@ char* file_contents(char* filename){
     }
     kfree(sectordata);
     kfree(file_sector);
-    contents_buffer[bytes_written]='\0';
     return contents_buffer;
 }
+
 unsigned char* plaintext_to_filename(char* filename){ //caller must free file_fatname
     if(strlen(filename)>12){
         return NULL;

@@ -7,7 +7,7 @@
 #include "tty.h"
 #include "kmalloc.h"
 #include "writingmode.h"
-int historybuffersize = 4096;
+int historybuffersize = 0;
 char* previous_inputs_buffer= NULL;
 int history_position = 0;
 int history_current_size=0;
@@ -42,6 +42,7 @@ void store_prev_inputs(){
     size_t len = strlen(input_buffer);
     if(history_current_size+len+1>historybuffersize){
         historybuffersize+=((len+1)*5); //add more than needed to avoid constant reallocs
+        history_current_size+=(len+1);
         previous_inputs_buffer=krealloc(previous_inputs_buffer, historybuffersize);
     }
     memmove(&previous_inputs_buffer[len+1], &previous_inputs_buffer[0], PREV_INPUTS_BUFFER-(len+1));

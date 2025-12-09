@@ -6,12 +6,7 @@
 uint8_t gdt[GDT_ENTRIES*8];
 uint16_t gdtsize = GDT_ENTRIES*8-1;
 
-typedef struct __attribute__((packed)) TSS{ /*
-    note: most of these fields are irrelevant. 
-    cpu state is now stored on the stack, rather
-    than in the tss. only ss0 and esp0 matter to
-    switch to kernel stack. not that i even have
-    a userspace right now*/
+typedef struct __attribute__((packed)) TSS{
     uint16_t link;
     uint16_t res_1;
     uint32_t esp0;
@@ -111,5 +106,4 @@ void initGdt(){
 }
 void updateTSSesp(uint32_t esp0){
     tss.esp0 = esp0;
-    reloadTSS();
 }

@@ -3,12 +3,14 @@
 #include "kmalloc.h"
 #include "string.h"
 #include "tty.h"
+#include "idt.h"
 #include "process.h"
 #include <stdbool.h>
 
 #define MAX_PAGES 1024*1024
 #define KERNEL_BITMAP_SIZE 0x8000
 #define OFFSET 0xC0000000
+#define USER_PD_AREA 0xD0000000
 extern int*_kernel_endpoint;
 extern void enable_paging();
 typedef struct{
@@ -18,6 +20,7 @@ typedef struct{
     uint32_t acpi_attributes; //note- some bioses will leave this empty
 } Memory_Entry;
 
+
 uint32_t pagenum=0;
 uint32_t kernel_pd;
 uint8_t page_bitmap[MAX_PAGES/8]={0};
@@ -25,6 +28,7 @@ uint8_t kernel_virt_page_bitmap[KERNEL_BITMAP_SIZE]={0};
 uint32_t fbuffer_pages=(4*1024*1280+4095)/4096;
 const uint32_t page_size = 4096;
 const Memory_Entry* memory_map_array = (Memory_Entry*)0xc0010004;
+
 extern ProcessNode* current_process;
 
 
@@ -42,7 +46,7 @@ void page_fault_handler(uint32_t pageaddr, uint32_t errcode){
         panic("PAGE PROTECTION FAULT");
     }
     else if((present||pageaddr>=0xC0000000) && is_user){
-        kill_process(current_process);
+        kill_process(current_process->p.pid);
     }
     else{
         alloc_page(pageaddr);
@@ -52,9 +56,11 @@ void paging_setup(){
     set_memory_bitmap();
     reserve_address(0, 0x400000);
     reserve_address(selected_video_mode->framebuffer, selected_video_mode->framebuffer+selected_video_mode->bpp*selected_video_mode->width+selected_video_mode->height);
-    memset(kernel_virt_page_bitmap, 0xFF, sizeof(kernel_virt_page_bitmap));
-    memset(get_page_table_virtual(0)[0], 0, 4096); //unmap original identity mapping
+    memset(&kernel_virt_page_bitmap[1024/8], 0xFF, sizeof(kernel_virt_page_bitmap)-4*1024/8); //first table already mapped, last 3 are for screen and recursive
+    memset(&get_page_table_virtual(0)[0], 0, 4096); //unmap original identity mapping
     kernel_pd = get_page_table_virtual(1023);
+    uint32_t phys_pd = phys_from_virt(kernel_pd);
+    asm volatile("mov %0, %%cr3" :: "r"(phys_pd)); //flush tlb
 }
 uint32_t* get_page_table_virtual(uint32_t dir_index){
    return (uint32_t*)(0xFFC00000+dir_index*page_size);
@@ -110,7 +116,7 @@ void unreserve_address(uint32_t start, uint32_t end){
 uint32_t alloc_page(uint32_t virt_addr){
     uint32_t virtpage=virt_addr/4096;
     uint32_t normalized_virtpage = (virt_addr-OFFSET)/4096;
-    if(!current_process){
+    if(virt_addr>=0xC0000000){
         if(kernel_virt_page_bitmap[normalized_virtpage/8]&(1<<(normalized_virtpage%8))){
             kernel_virt_page_bitmap[normalized_virtpage/8]&=~(1<<(normalized_virtpage%8));
             uint32_t phys_addr = alloc_raw_page();
@@ -146,32 +152,33 @@ void free_raw_page(uint32_t addr){
     page_bitmap[i/8] |= (1<<(i%8));
 }
 
-uint32_t create_process_address_space(){
+Page create_process_address_space(){
     uint32_t free_address;
-    for(int i=0; i<KERNEL_BITMAP_SIZE; i++){
-        if((kernel_virt_page_bitmap[i/8]&1<<(i%8))!=0){
+    for(int i=USER_PD_AREA/4096/8; i<KERNEL_BITMAP_SIZE*8; i++){
+        if((kernel_virt_page_bitmap[i/8]&(1<<(i%8)))!=0){
             free_address = i*4096+OFFSET;
             break;
         }
     }
-    uint32_t* pd = alloc_page(free_address);
+    alloc_page(free_address);
+    uint32_t* pd = (uint32_t*)free_address;
+    memcpy(&pd[768], &((uint32_t*)kernel_pd)[768], 255*sizeof(uint32_t));
     uint32_t phys_pd = phys_from_virt(pd);
-    memcpy(&pd[768], ((uint32_t*)kernel_pd)[768], 255*sizeof(uint32_t));
     pd[1023]=phys_pd|0x3;
     memset(&pd[0], 0, 768*sizeof(uint32_t)); 
-    free_page(free_address);
-    page_bitmap[phys_pd/8]&=~(1<<phys_pd%8);
-    return phys_pd;
+    Page user_pd = {phys_pd, pd};
+    return user_pd;
 }
 
 uint32_t map_page(uint32_t virtaddr, uint32_t physaddr){
+    bool is_kernel = virtaddr>=0xC0000000;
     uint32_t* dir = get_page_table_virtual(1023); // virtual address of page directory
     uint32_t dir_index = (virtaddr >> 22) & 0b1111111111;
     int user = 0;
 
     if (!(dir[dir_index] & 0x1)) {
         uint32_t phys_table = create_new_table(virtaddr);
-        if(current_process!=NULL){
+        if(!is_kernel){
             user=1;
             PageNode* newpage = kmalloc(sizeof(PageNode));
             newpage->physical_page = phys_table;
@@ -180,7 +187,7 @@ uint32_t map_page(uint32_t virtaddr, uint32_t physaddr){
         }
     }
 
-    if(current_process!=NULL){
+    if(!is_kernel){
         user = 1;
         PageNode* newpage = kmalloc(sizeof(PageNode));
         newpage->virtual_page = virtaddr;
@@ -191,7 +198,7 @@ uint32_t map_page(uint32_t virtaddr, uint32_t physaddr){
 
     uint32_t* table = get_page_table_virtual((virtaddr>>22)&0b1111111111); //extract 10 table bits
     table = (uint32_t*)((uint32_t)table & 0xfffff000);
-    table[(virtaddr>>12)&0b1111111111]=physaddr|0x3|(user<<2);
+    table[(virtaddr>>12)&0b1111111111]=physaddr|0x3|(user<<2)|(is_kernel<<7);
     invlpg(virtaddr);
     memset((void*)virtaddr, 0, 4096);
     return 0;
@@ -200,7 +207,7 @@ void free_page(uint32_t addr){
     uint32_t table_entry = (addr>>22);
     if(!((uint32_t)get_page_table_virtual(table_entry)&0x1)) return;
     uint32_t table_offset = ((addr>>12)&1023);
-    if(!current_process){
+    if(addr>=0xC0000000){
         kernel_virt_page_bitmap[((addr-OFFSET)/4096)/8] |= 1<<(((addr-OFFSET)/4096)%8);
     }
     else{
@@ -215,10 +222,14 @@ void free_page(uint32_t addr){
     free_raw_page(physaddr);
 }
 uint32_t create_new_table(uint32_t addr){
+    bool is_kernel = addr>=0xc0000000;
     uint32_t* dir = get_page_table_virtual(1023);
     uint32_t tablenum = (addr>>22)&0b1111111111;
     uint32_t physaddr = alloc_raw_page();
-    dir[tablenum]=physaddr|0x3;
+    physaddr|=0x3;
+    if(is_kernel)physaddr|=(1<<7); //mark global bit, will never be flushed by cr3 switch
+    else physaddr |= (1<<2); //user bit 
+    dir[tablenum]=physaddr;
     void* table_va = (void*)(0xFFC00000)+(tablenum<<12);
     invlpg(table_va);
     memset(get_page_table_virtual(tablenum), 0, 4096);

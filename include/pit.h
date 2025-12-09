@@ -1,3 +1,5 @@
+#ifndef PIT
+#define PIT
 #define CHANNEL_0_DATA 0x40//generates IRQ mapped to 0, read/write
 #define CHANNEL_1_DATA 0x41//irrelevant on newer machines, im including it anyways
 #define CHANNEL_2_DATA 0x42 //pc speaker read/write
@@ -18,3 +20,4 @@ void sleep(uint16_t seconds);
 void msleep(uint32_t miliseconds);
 void play_sound(uint16_t hertz, uint32_t duration);
 void bad_time();
+#endif

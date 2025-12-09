@@ -4,6 +4,7 @@ global   pit_timer_wrapper
 extern write_to_buffer
 extern update_time
 extern pit_timer
+extern schedule
 extern exception_handler
 extern syscall_handler
 extern page_fault_handler
@@ -58,10 +59,29 @@ update_time_wrapper:
 
 pit_timer_wrapper:
     pushad
+    push ds
+    push es
+    push fs
+    push gs
+
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
     cld     
-    call pit_timer
+    push esp
+    call schedule
+    add esp, 4
+
+    pop gs
+    pop fs
+    pop es
+    pop ds
     popad
     iret
+    
+    
 
 exception_0_wrapper:
     pushad

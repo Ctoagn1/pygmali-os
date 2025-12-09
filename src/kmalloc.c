@@ -58,7 +58,7 @@ void* kmalloc(size_t size){
     return (void*)(new_block+1);
 }
 void kfree(void* to_be_freed){
-    if(!to_be_freed || ((int*)to_be_freed<(int*)heap_start || ((int*)to_be_freed)>((int*)heap_end)-sizeof(block_header))){
+    if(!to_be_freed || ((int*)to_be_freed<(int*)heap_start || ((int*)to_be_freed)>((int*)heap_end))){
         printf("INVALID FREE %p", to_be_freed);
         return;
     }
