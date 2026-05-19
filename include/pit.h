@@ -17,6 +17,7 @@ extern uint64_t ms_timer;
 void set_hertz(uint16_t hertz);
 void pit_timer_wrapper();
 void sleep(uint16_t seconds);
+void pit_timer();
 void msleep(uint32_t miliseconds);
 void play_sound(uint16_t hertz, uint32_t duration);
 void bad_time();

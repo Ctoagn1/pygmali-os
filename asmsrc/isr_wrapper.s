@@ -5,6 +5,7 @@ extern write_to_buffer
 extern update_time
 extern pit_timer
 extern schedule
+extern keyevent_translate
 extern exception_handler
 extern syscall_handler
 extern page_fault_handler
@@ -31,7 +32,6 @@ global exception_19_wrapper
 global exception_20_wrapper
 global exception_21_wrapper
 global enable_paging
-global context_switch
 global syscall_handler_wrapper
 [BITS 32]
 enable_paging:
@@ -47,6 +47,7 @@ write_to_buffer_wrapper:
     pushad
     cld     ;C code following the sysV ABI requires DF to be clear on function entry
     call write_to_buffer
+    call keyevent_translate
     popad
     iret
 
@@ -71,6 +72,7 @@ pit_timer_wrapper:
     mov gs, ax
     cld     
     push esp
+    call pit_timer
     call schedule
     add esp, 4
 
@@ -84,6 +86,8 @@ pit_timer_wrapper:
     
 
 exception_0_wrapper:
+    popad
+    iret
     pushad
     push 0
     push esp
@@ -257,9 +261,10 @@ exception_21_wrapper:
     iret
 syscall_handler_wrapper:
     pushad
-    call syscall_handler
-    popad
-    iret
-context_switch:
+    push ds
+    push es
+    push fs
+    push gs
+    ;call syscall_handler
     popad
     iret

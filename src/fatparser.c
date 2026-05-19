@@ -3,6 +3,8 @@
 #include "kmalloc.h"
 #include "fatparser.h"
 #include "printf.h"
+#include "fd.h"
+#include "rtc.h"
 #include "pit.h"
 #define FAT_NAME_LENGTH 11
 #define MAX_PATH_DEPTH 64
@@ -135,58 +137,6 @@ int file_size_from_name(char* filename){
     return filesize;
 }
 
-char* file_contents(char* filename){
-    int clusternum = 0;
-    int bytes_written = 0;
-    File_Location location = get_file_location(filename, FIND_EXISTS);
-    char* contents_buffer = NULL;
-    if(location.byte_offset==-1){
-        return NULL;
-    }
-    uint8_t *file_sector = kmalloc(512);
-    if(!file_sector) return NULL;
-    read_sector(location.lba, file_sector);
-    Cluster_Entry* file_entry = (Cluster_Entry*)&file_sector[location.byte_offset];
-    if((file_entry->attr&0x10) == 0x10){
-        kfree(file_sector);
-        return NULL;
-    }
-    char* sectordata = kmalloc(512);
-    if(!sectordata){
-        kfree(file_sector);
-        return NULL;
-    }
-    uint32_t current_cluster = (uint32_t)file_entry->low_cluster_number+((uint32_t)file_entry->high_cluster_number<<16);
-    while(current_cluster>=root_cluster && current_cluster<0x0FFFFFF8){
-        char* new_buffer =krealloc(contents_buffer, sectors_per_cluster*512*(1+clusternum));
-        if(!new_buffer){
-            kfree(contents_buffer);
-            kfree(file_sector);
-            kfree(sectordata);
-            return NULL;
-        }
-        contents_buffer=new_buffer;
-        int current_sector = sector_of_cluster(current_cluster);
-        for(int i=0; i<sectors_per_cluster; i++){
-            read_sector(current_sector+i, sectordata);
-            for(int j=0; j<512; j++){
-                bytes_written++;
-                contents_buffer[(clusternum*sectors_per_cluster*512)+(i*512)+j]=sectordata[j];
-            }
-        }
-        clusternum++;
-        if(clusternum>=256){
-            kfree(sectordata);
-            kfree(file_sector);
-            return NULL;
-        }
-        current_cluster=get_from_fat(current_cluster);
-    }
-    kfree(sectordata);
-    kfree(file_sector);
-    return contents_buffer;
-}
-
 unsigned char* plaintext_to_filename(char* filename){ //caller must free file_fatname
     if(strlen(filename)>12){
         return NULL;
@@ -228,6 +178,17 @@ unsigned char* plaintext_to_filename(char* filename){ //caller must free file_fa
         }
     }
     return file_fatname;
+}
+int assign_filedata(File* f,  char* filename){
+    File_Location location = get_file_location(filename, FIND_EXISTS);
+    if(location.byte_offset==-1) return -1;
+    Fat32_Data* filedata = kmalloc(sizeof(Fat32_Data));
+    f->data = filedata;
+    filedata->start_cluster = location.cluster;
+    filedata->cluster_offset = 0;
+    filedata->size = get_file_size(location.cluster)*sectors_per_cluster*bytes_per_sector;
+    filedata->current_cluster = location.cluster;
+    return 0;
 }
 char* names_from_directory(DirectoryListing list){ //caller must free list
     int file_num=0;
@@ -313,63 +274,78 @@ int file_path_destination(char* input_dir){
     }
     return current_cluster;
 }
-int write_to_file(char* contents, int byte_size, char* filename){
-    int cluster_bytes = sectors_per_cluster*512;
-    int padded_len=((byte_size+cluster_bytes-1)/cluster_bytes)*cluster_bytes;
-    char* padded_contents=kmalloc(padded_len);
-    if(!padded_contents) return -1;
-    memset(padded_contents, 0, padded_len);
-    memcpy(padded_contents, contents, byte_size);
-    int cluster_size=padded_len/(512*sectors_per_cluster);
-    File_Location direntry = get_file_location(filename, FIND_EXISTS);
-    if(direntry.byte_offset==-1){
-        kfree(padded_contents);
-        return -1;
-    }
-    char* sector_buffer = kmalloc(512);
-    if(!sector_buffer){
-        kfree(padded_contents);
-        return -1;
-    }
-    read_sector(direntry.lba, sector_buffer);
-    Cluster_Entry* file_entry = (Cluster_Entry*)&sector_buffer[direntry.byte_offset];
-    uint32_t start_cluster = (uint32_t)file_entry->low_cluster_number|((uint32_t)file_entry->high_cluster_number<<16);
-    int start_size = get_file_size(start_cluster);
-    int extend=start_cluster;
-    for(int i=0; i<cluster_size-start_size; i++){
-        extend=extend_file(extend);
-    }
-    if(extend==1){
-        kfree(padded_contents);
-        return -1;
-    }
-    uint32_t current_cluster = start_cluster;
-    if(start_size>cluster_size){
-        int cluster_count=1;
-        while(cluster_count<start_size){
-            current_cluster=get_from_fat(current_cluster);
-            cluster_count++;
+int fat32_read(File* f, void* buf, int n){
+    Fat32_Data* file = (Fat32_Data*)f->data;
+    if(f->offset >= file->size) return 0;
+    int bytes_to_read = ((file->size - f->offset)<n) ? (file->size- f->offset) : n;
+    int copied = 0;
+    
+    while(copied<bytes_to_read){
+        uint8_t cluster_buf[sectors_per_cluster*bytes_per_sector];
+        int sector = sector_of_cluster(file->current_cluster);
+        for(int i=0; i<sectors_per_cluster; i++){
+            read_sector(sector+i, &cluster_buf[i*bytes_per_sector]);
         }
-        int next_cluster=get_from_fat(current_cluster);
-        modify_fat(current_cluster, 0x0FFFFFF8);
-        current_cluster=next_cluster;
-        while(current_cluster<0x0FFFFFF8 && current_cluster>1){
-            next_cluster=get_from_fat(current_cluster);
-            modify_fat(current_cluster, 0);
-            current_cluster=next_cluster;
+
+        int cluster_remaining = (sectors_per_cluster*bytes_per_sector)- file->cluster_offset;
+        int chunk = (bytes_to_read-copied < cluster_remaining) ? (bytes_to_read-copied) : cluster_remaining;
+
+        memcpy((uint8_t*)buf + copied, cluster_buf+file->cluster_offset, chunk);
+        copied+=chunk;
+        f->offset+=chunk;
+        file->cluster_offset+=chunk;
+        if(file->cluster_offset >= (sectors_per_cluster*bytes_per_sector)){
+            file->current_cluster = get_from_fat(file->current_cluster);
+            file->cluster_offset=0;
         }
     }
-    current_cluster=start_cluster;
-    for(int i=0; i<cluster_size; i++){
-        int first_sector=sector_of_cluster(current_cluster);
-        for(int j=0; j<sectors_per_cluster; j++){
-            write_sector(first_sector+j, &padded_contents[(i*sectors_per_cluster+j)*512]);
+    return copied;
+}
+
+int fat32_write(File* f, const void* buf, int n) {
+    Fat32_Data* file = (Fat32_Data*)f->data;
+    int written = 0;
+
+    while(written < n) {
+        uint8_t cluster_buf[sectors_per_cluster*bytes_per_sector];
+        int sector = sector_of_cluster(file->current_cluster);
+        for(int i=0; i<sectors_per_cluster; i++)
+            read_sector(sector+i, &cluster_buf[i*512]);
+
+        int cluster_remaining = (sectors_per_cluster*bytes_per_sector) - file->cluster_offset;
+        int chunk = (n - written < cluster_remaining) ? (n - written) : cluster_remaining;
+
+        memcpy(cluster_buf + file->cluster_offset, (uint8_t*)buf + written, chunk);
+
+        for(int i=0; i<sectors_per_cluster; i++)
+            write_sector(sector+i, &cluster_buf[i*512]);
+
+        written += chunk;
+        f->offset += chunk;
+        file->cluster_offset += chunk;
+
+        if(file->cluster_offset >= (sectors_per_cluster*bytes_per_sector)) {
+            uint32_t next_cluster = get_from_fat(file->current_cluster);
+            if(next_cluster >= 0x0FFFFFF8) {
+                next_cluster = get_empty_cluster();
+                modify_fat(file->current_cluster, next_cluster);
+                modify_fat(next_cluster, 0x0FFFFFF8);
+                uint8_t zero[512];
+                memset(zero, 0, 512);
+                int start_sector = sector_of_cluster(next_cluster);
+                for(int i=0; i<sectors_per_cluster; i++)
+                    write_sector(start_sector+i, zero);
+            }
+            file->current_cluster = next_cluster;
+            file->cluster_offset = 0;
         }
-        current_cluster=get_from_fat(current_cluster);
     }
-    kfree(sector_buffer);
-    kfree(padded_contents);
-    return 0;
+
+    if(f->offset > file->size) {
+        file->size = f->offset;
+    }
+
+    return written;
 }
 uint32_t get_empty_cluster(){
     uint32_t first_fat_sector=partition_start+reserved_sectors;
@@ -459,24 +435,16 @@ File_Location get_file_location(char* filename, LookupMode mode){
         filepath[0]='\0';
         name[len]='\0';
     }
-    char* full_path=append_path(filepath);
-    if(!full_path){
-        kfree(filepath);
-        kfree(name);
-        return not_found;
-    }
-    cluster = file_path_destination(full_path);
+    cluster = file_path_destination(filepath);
     int start_cluster=cluster;
     if(cluster==-1){
         kfree(filepath);
         kfree(name);
-        kfree(full_path);
         return not_found;
     }
     DirectoryListing dirlist = directory_parse(cluster);
     unsigned char* formatted_name = plaintext_to_filename(name);
     if(!formatted_name){
-        kfree(full_path);
         kfree(name);
         kfree(filepath);
         kfree(dirlist.entries);
@@ -510,7 +478,6 @@ File_Location get_file_location(char* filename, LookupMode mode){
     }
     kfree(name);
     kfree(dirlist.entries);
-    kfree(full_path);
     kfree(formatted_name);
     kfree(filepath);
     filedest.lba = lba_offset+sector_of_cluster(cluster);
@@ -675,6 +642,10 @@ int create_file(char* filename, FileType type){
     newfile->low_cluster_number=(newcluster&0xFFFF);
     newfile->high_cluster_number=((newcluster>>16)&0xFFFF);
     newfile->size_of_file=0;
+    newfile->date_of_creation = fat32_filedate();
+    newfile->time_of_creation = fat32_filetime();
+    newfile->last_modified_date = newfile->date_of_creation;
+    newfile->last_modified_time = newfile->time_of_creation;
     uint8_t* zero = kmalloc(512);
     memset(zero, 0, 512);
     int start = sector_of_cluster(newcluster);

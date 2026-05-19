@@ -15,6 +15,7 @@ int max(int a, int b){
 int min(int a, int b){
   return (a<b) ? a : b;
 }
+
 int strcmp(const char *s1, const char *s2) {
     while (*s1 && (*s1 == *s2)) {
         s1++;
@@ -82,13 +83,13 @@ memset (void *dest, register int val, register size_t len)
     *ptr++ = val;
   return dest;
 }
-int str_to_int(char* val){
-  int return_val=0;
-  for(int i=0; val[i]!='\0'; i++){
-    return_val*=10;
-    return_val +=(val[i]-'0');
-  }
-  return return_val;
+int str_to_int(char* p){
+    int value = 0;
+    while (*p >= '0' && *p <= '9') {
+        value = value * 10 + (*p - '0');
+        p++;
+    }
+    return value;
 }
 uint64_t merge_bytes(uint8_t* bytes, int length){
     uint64_t sum = 0;

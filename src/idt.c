@@ -3,7 +3,7 @@
 #include "keyboardhandler.h"
 #include "idt.h"
 #include <stdbool.h>
-#include "tty.h"
+#include "console.h"
 #include "rtc.h"
 #include "pit.h"
 #include "printf.h"
@@ -53,19 +53,27 @@ void initIdt(){
     makeIDTEntry(&idt[19], (uint32_t)&exception_19_wrapper, 0x08, 0b1110, 0);
     makeIDTEntry(&idt[20], (uint32_t)&exception_20_wrapper, 0x08, 0b1110, 0);
     makeIDTEntry(&idt[21], (uint32_t)&exception_21_wrapper, 0x08, 0b1110, 0);
-    makeIDTEntry(&idt[80], (uint32_t)&syscall_handler_wrapper, 0x08, 0b1110, 0);
+    makeIDTEntry(&idt[0x80], (uint32_t)&syscall_handler_wrapper, 0x08, 0b1110, 0);
 
 
 
     reloadIDT(sizeof(idt)-1, (uint32_t)&idt);
 }
-void panic(char *error){
-    disable_cursor();
-	printf("FATAL ERROR %s\nSYSTEM HALTED", error);
-	 __asm__ volatile("cli; hlt"); //disable interrupts, halt cpu function
-}
 void print_regs(ExceptionStack *regs){
     printf("REGISTER DUMP\nEAX: %08x\nECX: %08x\nEDX: %08x\nEBX: %08x\nESP: %08x\nEBP: %08x\nESI: %08x\nEDI: %08x\n", regs->eax, regs->ecx, regs->edx, regs->ebx, regs->esp, regs->ebp, regs->esi, regs->edi);
+}
+
+void panic(char *error){
+    disable_cursor();
+	printf("FATAL ERROR %s\nSYSTEM HALTED\n", error);
+    ExceptionStack* regs;
+    asm volatile(
+        "pusha\n"
+        "mov %%esp, %0\n"
+        : "=r"(regs)
+    );
+    print_regs(regs);
+	 __asm__ volatile("cli; hlt"); //disable interrupts, halt cpu function
 }
 
 void exception_handler(ExceptionStack *regs){

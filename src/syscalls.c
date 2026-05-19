@@ -1,111 +1,88 @@
 
+#include "process.h"
+#include "fd.h"
 #include "syscalls.h"
+#include "io.h"
+#include "fatparser.h"
+#include "kmalloc.h"
+extern ProcessNode* current_process;
 
-void syscall_handler(RegStack* regs){
+#define KERNEL_BASE 0xC0000000
+
+
+void syscall_handler(Regs* regs){
     int call_num = regs->eax;
-    void* dest = regs->ebx;
-    int buffersize = regs->ecx;
-    void* input_buffer = regs->edx;
+    int returnval=0;
     switch(call_num){
-        case 0: 
-            if (!is_user_address((uint32_t)dest, buffersize)) return;
-            syscall_get_key(dest, buffersize);
-        case 1:
-            if (!is_user_address((uint32_t)dest, buffersize)) return;
-            syscall_get_key_array(dest, buffersize);
-        case 2:
-            syscall_print_rect(regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
-        case 3:
-            if (!is_user_address((uint32_t)dest, buffersize)) return;
-            syscall_read_directory_names(input_buffer, dest, buffersize);
-        case 4:
-            if (!is_user_address((uint32_t)dest, buffersize)) return;
-            syscall_read(input_buffer, dest, buffersize);
-            regs->eax=file_size_from_name(input_buffer);
-        case 5:
-            syscall_write(dest, buffersize, input_buffer);
-        case 6:
-            syscall_create_file(input_buffer);
-        case 7:
-            syscall_create_dir(input_buffer);
-        case 8:
-            syscall_delete(input_buffer);
+        case 0x3:
+            returnval=sys_read(regs->ebx, (void*)regs->ecx, regs->edx);
+            if (current_process->p.state==PROC_BLOCKED) schedule(regs);
+            break;
+        case 0x4:
+            returnval=sys_write(regs->ebx, (void*)regs->ecx, regs->edx);
+            break;
+        case 0x5:
+            returnval=sys_open((char*)regs->ebx, regs->ecx, regs->edx);
+            break;
+        case 0x58:
+            reboot();
         default:
             ;
+        asm volatile (
+        "mov %0, %%eax"
+        :
+        : "r"(returnval)
+    :   "%eax"
+);
         
     }
     return;
 
 }
+int sys_read(int fd, void *buf, int size) {
+    Process *p = &current_process->p;
+    if (fd < 0 || fd >= MAX_FD) return -1;
+
+    File *f = p->fd_table[fd];
+    if (!f || !f->fileops || !f->fileops->read) return -1;
+
+    return f->fileops->read(f, buf, size);
+}
+
+int sys_write(int fd, const void *buf, int size) {
+    Process *p = &current_process->p;
+    if (fd < 0 || fd >= MAX_FD) return -1;
+
+    File *f = p->fd_table[fd];
+    if (!f || !f->fileops || !f->fileops->write) return -1;
+
+    return f->fileops->write(f, buf, size);
+}
+
 bool is_user_address(uint32_t addr, uint32_t len){
     if(addr>=KERNEL_BASE) return false;
     if(addr+len-1>=KERNEL_BASE) return false;
     return true;
 }
-
-
-void syscall_get_key(void* dest, int buffersize){
-    
-    KeyEvent event = {0};
-    get_keyevent(&event);
-    memcpy(dest, &event, min(buffersize, sizeof(KeyEvent)));
-    return;
-
-}
-void syscall_get_key_array(void* dest, int buffersize){ //for multiple keys at once, or non-ascii like ctrl. caller must free array
-    _Bool* keyarray = kmalloc(KEYBOARD_SIZE*sizeof(_Bool));
-    for(int i=0; i<sizeof(key_state)/sizeof(_Bool); i++){
-        keyarray[i] = key_state[i];
+int sys_open(const char* filename, int flags, int mode){
+    File* newfd = kmalloc(sizeof(File));
+    newfd->flags = flags;
+    newfd->offset = 0;
+    newfd->reference_count = 1;
+    if(assign_filedata(newfd, filename)==-1){
+        kfree(newfd);
+        return -1;
     }
-    memcpy(dest, keyarray, min(buffersize, sizeof(KEYBOARD_SIZE*sizeof(_Bool))));
-    kfree(keyarray);
-    return;
-}
-void syscall_print_rect(uint32_t* buffer, int topleft_x, int topleft_y, int x_len, int y_len){
-    uint32_t* membuff = (uint32_t*)virtual_framebuffer;
-    uint32_t* startaddr = membuff+topleft_x+(topleft_y*selected_video_mode->width);
-    for(int i=0; i<y_len; i++){
-		for(int j=0; j<x_len; j++){
-				startaddr[j+i*selected_video_mode->width]=buffer[j+i*x_len];
-		}
-	}
-}
-/*void syscall_read_directory_info(char* absolute_filepath, void* dest){ //must free list.entries
-    int cluster = file_path_destination(absolute_filepath);
-    DirectoryListing file_list = directory_parse(cluster);
-    memcpy(dest, &file_list, file_list.count*sizeof(Cluster_Entry));
-    kfree(file_list.entries);
-}*/
-void syscall_read_directory_names(char* absolute_filepath, void* dest, int buffersize){ //must free filenames
-    int cluster = file_path_destination(absolute_filepath);
-    if(cluster<2) return;
-    DirectoryListing file_list = directory_parse(cluster);
-    char* names = names_from_directory(file_list);
-    kfree(file_list.entries);
-    memcpy(dest, names, min(buffersize, strlen(names)+1));
-    kfree(names);
-    return;
-}
-void syscall_read(char* absolute_filepath, void* dest, int buffersize){ //must free contents
-    char* contents = file_contents(absolute_filepath);
-    memcpy(dest, contents, min(buffersize, file_size_from_name(absolute_filepath)));
-    kfree(contents);
-    return;
-}
-void syscall_write(char* contents, int bytesize, char* absolute_filepath){
-    write_to_file(contents, bytesize, absolute_filepath);
-    return;
-}
-void syscall_create_file(char* absolute_filepath){
-    create_file(absolute_filepath, FILE);
-    return;
-}
-void syscall_create_dir(char* absolute_filepath){
-    create_file(absolute_filepath, DIRECTORY);
-    return;
-}
-void syscall_delete(char* absolute_filepath){
-    delete_file(absolute_filepath);
-    return;
+    Process *p = &current_process->p;
+    fd_alloc(p, newfd);
+    return 0;
 }
 
+void reboot()
+{
+    uint8_t good = 0x02;
+    while (good & 0x02)
+        good = inb(0x64);
+    outb(0x64, 0xFE);
+    asm volatile("hlt");
+}

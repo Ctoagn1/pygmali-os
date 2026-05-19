@@ -22,6 +22,8 @@ extern uint8_t year;
 extern uint64_t timer;
 extern _Bool is_24_hrs;
 extern _Bool is_BCD; 
+uint16_t fat32_filetime();
+uint16_t fat32_filedate();
 #include <stdint.h>
 void read_startup_time();
 void update_time_wrapper();

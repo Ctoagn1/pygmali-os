@@ -2,7 +2,7 @@
 #include "io.h"
 #include "pic.h"
 #include "rtc.h"
-#include "tty.h"
+#include "console.h"
 #include "printf.h"
 /*Status Register A- bit 0-3 sets divider output frequency, default is 0110 for 1024 Hz. 
 bit 4 is bank control, sets CMOS ram bank that rtc acesses. bits 5-6 determine time-base frequency,
@@ -143,4 +143,10 @@ void display_time(){
     char date_and_time[64]={0};
     snprintf(date_and_time, sizeof(date_and_time), "%s %d, 20%02d %02d:%02d:%02d\n", word_months[month-1], day, year, hour, minute, second);
     terminal_writestring(date_and_time);
+}
+uint16_t fat32_filetime(){
+    return (hour|(minute<<5)|(2*second<<11)); //i don't know why seconds are multiplied by 2 but that's how it goes
+}
+uint16_t fat32_filedate(){
+    return (year|(month<<7)|(day<<11));
 }

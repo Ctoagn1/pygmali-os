@@ -21,7 +21,6 @@
 #define GPT_END_LBA 0x28
 //uses 28 bit, bytes 3,4,5, lower nibble of 6
 #include "io.h"
-#include "tty.h"
 #include "string.h"
 #include "kmalloc.h"
 uint16_t diskinfo[256]={0};//identify returns 512 bytes (or 256 words)

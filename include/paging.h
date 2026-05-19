@@ -2,12 +2,13 @@
 #define PAGING
 #include <stdint.h>
 #include "process.h"
+#include "multiboot.h"
 
 struct Page;
 
-void paging_setup();
+void paging_setup(struct multiboot_tag_mmap* mmap);
 void create_page_tables(uint32_t* page_directory);
-void set_memory_bitmap();
+void set_memory_bitmap(struct multiboot_tag_mmap* mmap);
 void reserve_address(uint32_t start, uint32_t end);
 uint32_t alloc_page();
 uint32_t alloc_raw_page();

@@ -3,6 +3,7 @@
 #include "diskreader.h"
 #include "string.h"
 #include "kmalloc.h"
+#include "fd.h"
 #define FAT_NAME_LENGTH 11
 extern uint16_t bytes_per_sector;
 extern uint8_t sectors_per_cluster;
@@ -62,9 +63,11 @@ int file_path_destination(char* input_dir);
 int check_attributes(char* filename);
 char* append_path(char* filepath);
 void normalize_path(char *path); 
-char* file_contents(char* filename);
+int fat32_read(File* f, void* buf, int n);
+int fat32_write(File* f, const void* buf, int n);
 int create_file(char* filename, FileType type);
 int extend_file(int cluster);
-int write_to_file(char* contents, int byte_size, char* filename);
+uint32_t get_empty_cluster();
 int file_size_from_name(char* filename);
+int assign_filedata(File* f,  char* filename);
 #endif

@@ -3,39 +3,62 @@
 #include "keyboardhandler.h"
 #include "io.h"
 #include "tty.h"
+#include "console.h"
 #include <stdint.h>
 #include "pic.h"
+#include <stdbool.h>
 #include "string.h"
-#include "writingmode.h"
-#include "inputhandler.h"
-_Bool key_state[KEYBOARD_SIZE] = {0};
-char ascii_map[ASCII_MAP_SIZE] = {[A_KEY]='a',[B_KEY]='b',[C_KEY]='c',[D_KEY]='d',[E_KEY]='e',
-[F_KEY]='f',[G_KEY]='g',[H_KEY]='h',[I_KEY]='i',[J_KEY]='j',[K_KEY]='k',[L_KEY]='l',[M_KEY]='m',
-[N_KEY]='n',[O_KEY]='o',[P_KEY]='p',[Q_KEY]='q',[R_KEY]='r',[S_KEY]='s',[T_KEY]='t',[U_KEY]='u',
-[V_KEY]='v',[W_KEY]='w',[X_KEY]='x',[Y_KEY]='y',[Z_KEY]='z',[COMMA_KEY]=',',[PERIOD_KEY]='.',[SLASH_KEY]='/',
-[APOSTROPHE_KEY]='\'',[SEMICOLON_KEY]=';',[OPEN_BRACKET_KEY]='[',[CLOSED_BRACKET_KEY]=']',[BACKSLASH_KEY]='\\',[BACK_TICK]='`',
-[_0_KEY]='0',[_1_KEY]='1',[_2_KEY]='2',[_3_KEY]='3',[_4_KEY]='4',[_5_KEY]='5',[_6_KEY]='6',[_7_KEY]='7',[_8_KEY]='8',
-[_9_KEY]='9',[MINUS_KEY]='-',[EQUALS_KEY]='=', [ENTER_KEY]='\n', [TAB_KEY]='\t',[SPACE_KEY]= ' '};
-char shift_ascii_map[ASCII_MAP_SIZE] = {[A_KEY]='A',[B_KEY]='B',[C_KEY]='C',[D_KEY]='D',[E_KEY]='E',
-[F_KEY]='F',[G_KEY]='G',[H_KEY]='H',[I_KEY]='I',[J_KEY]='J',[K_KEY]='K',[L_KEY]='L',[M_KEY]='M',
-[N_KEY]='N',[O_KEY]='O',[P_KEY]='P',[Q_KEY]='Q',[R_KEY]='R',[S_KEY]='S',[T_KEY]='T',[U_KEY]='U',
-[V_KEY]='V',[W_KEY]='W',[X_KEY]='X',[Y_KEY]='Y',[Z_KEY]='Z',[COMMA_KEY]='<',[PERIOD_KEY]='>',[SLASH_KEY]='?',
-[APOSTROPHE_KEY]='\"',[SEMICOLON_KEY]=':',[OPEN_BRACKET_KEY]='{',[CLOSED_BRACKET_KEY]='}',[BACKSLASH_KEY]='|',[BACK_TICK]='~',
-[_0_KEY]=')',[_1_KEY]='!',[_2_KEY]='@',[_3_KEY]='#',[_4_KEY]='$',[_5_KEY]='%',[_6_KEY]='^',[_7_KEY]='&',[_8_KEY]='*',
-[_9_KEY]='(',[MINUS_KEY]='_',[EQUALS_KEY]='+', [ENTER_KEY]='\n', [TAB_KEY]='\t',[SPACE_KEY]= ' '};
+bool key_state[512] = {0};
 
+
+char Regular_Key_Lookup[]={
+    [0x01]=KEY_F9, [0x03]=KEY_F5, [0x04]=KEY_F3, [0x05]=KEY_F1, [0x06]=KEY_F2, [0x07]=KEY_F12,
+    [0x09]=KEY_F10, [0x0A]=KEY_F8, [0x0B]=KEY_F6, [0x0C]=KEY_F4, [0x0D]=KEY_TAB, [0x0E]=KEY_BACK_TICK,
+    [0x11]=KEY_LEFT_ALT, [0x12]=KEY_LEFT_SHIFT, [0x14]=KEY_LEFT_CTRL, [0x15]=KEY_Q, [0x16]=KEY_1, [0x1A]=KEY_Z,
+    [0x1B]=KEY_S, [0x1C]=KEY_A, [0x1D]=KEY_W, [0x1E]=KEY_2, [0x21]=KEY_C, [0x22]=KEY_X, [0x23]=KEY_D, [0x24]=KEY_E,
+    [0x25]=KEY_4, [0x26]=KEY_3, [0x29]=KEY_SPACE, [0x2A]=KEY_V, [0x2B]=KEY_F, [0x2C]=KEY_T, [0x2D]=KEY_R, [0x2E]=KEY_5,
+    [0x31]=KEY_N, [0x32]=KEY_B, [0x33]=KEY_H, [0x34]=KEY_G, [0x35]=KEY_Y, [0x36]=KEY_6, [0x3A]=KEY_M, [0x3B]=KEY_J, [0x3C]=KEY_U,
+    [0x3D]=KEY_7, [0x3E]=KEY_8, [0x41]=KEY_COMMA, [0x42]=KEY_K, [0x43]=KEY_I, [0x44]=KEY_O, [0x45]=KEY_0, [0x46]=KEY_9, [0x49]=KEY_PERIOD,
+    [0x4A]=KEY_SLASH, [0x4B]=KEY_L, [0x4C]=KEY_SEMICOLON, [0x4D]=KEY_P, [0x4E]=KEY_MINUS, [0x52]=KEY_APOSTROPHE, [0x54]=KEY_OPEN_BRACKET,
+    [0x55]=KEY_EQUALS, [0x58]=KEY_CAPSLOCK, [0x59]=KEY_RIGHT_SHIFT, [0x5A]=KEY_ENTER, [0x5B]=KEY_CLOSE_BRACKET, [0x5D]=KEY_BACKSLASH,
+    [0x66]=KEY_BACKSPACE, [0x69]=KEYPAD_1, [0x6B]=KEYPAD_4, [0x6C]=KEYPAD_7, [0x70]=KEYPAD_0, [0x71]=KEYPAD_DEC, [0x72]=KEYPAD_2, [0x73]=KEYPAD_5,
+    [0x74]=KEYPAD_6, [0x75]=KEYPAD_8, [0x76]=KEY_ESC, [0x77]=KEY_NUMBER_LOCK, [0x78]=KEY_F11, [0x79]=KEYPAD_PLUS, [0x7A]=KEYPAD_3, [0x7B]=KEYPAD_MINUS,
+    [0x7C]=KEYPAD_MUL, [0x7D]=KEYPAD_9, [0x7E]=KEY_SCROLL_LOCK, [0x83]=KEY_F7
+
+};
+char E0_Lookup[]={
+    [0x10]=KEY_WWW_SEARCH, [0x11]=KEY_RIGHT_ALT, [0x14]=KEY_RIGHT_CTRL, [0x15]=KEY_PREV_TRACK, [0x18]=KEY_WWW_FAVORITES,
+    [0x1F]=KEY_LEFT_GUI, [0x20]=KEY_WWW_STOP, [0x21]=KEY_VOL_DOWN, [0x23]=KEY_MUTE, [0x27]=KEY_RIGHT_GUI, [0x28]=KEY_WWW_STOP, [0x2B]=KEY_CALCULATOR,
+    [0x2f]=KEY_APPS, [0x30]=KEY_WWW_FORWARD, [0x32]=KEY_VOL_UP, [0x34]=KEY_PLAY_PAUSE, [0x37]=KEY_ACPI_POWER, [0x38]=KEY_WWW_BACK,
+    [0x3a]=KEY_HOME, [0x3b]=KEY_STOP, [0x3f]=KEY_ACPI_SLEEP, [0x40]=KEY_MY_COMPUTER, [0x48]=KEY_EMAIL, [0x4A]=KEYPAD_DIV, [0x4d]=KEY_NEXT_TRACK,
+    [0x50]=KEY_MEDIA_SELECT, [0x5a]=KEY_ENTER, [0x5e]=KEY_ACPI_WAKE, [0x69]=KEY_END, [0x6B]=CURSOR_LEFT, [0x6C]=KEY_HOME, [0x70]=KEY_INSERT,
+    [0x71]=KEY_DELETE, [0x72]=CURSOR_DOWN, [0x74]=CURSOR_RIGHT, [0x75]=CURSOR_UP, [0x7A]=KEY_PGDN, [0x7D]=KEY_PGUP
+};
+
+KeyEvent event_buffer[EVENT_BUFFER_SIZE];
+int event_buffer_offset=0;
 static uint8_t keyboard_buffer[KEYBOARD_BUFFER_SIZE];
 static volatile uint8_t head = 0;
 static volatile uint8_t tail = 0;
-_Bool capslock_on = 0;
+int code_size=0;
 
 void write_to_buffer(){
-    uint8_t next = (head + 1) % KEYBOARD_BUFFER_SIZE;
+    int next = (head + 1) % KEYBOARD_BUFFER_SIZE;
+    bool pause;
     if (next == tail){ //checks if buffer is full
         return;
     }
     keyboard_buffer[head] = inb(KEYBOARD_DATA);
+    uint8_t scancode = keyboard_buffer[head];
+    if(scancode==0xe1) pause=true;
     head = next;
+
+    code_size++;
+    if(!(scancode==0xE0 || scancode==0xF0 || (scancode==0x7C && code_size==3) || (pause&&code_size!=8))){
+        read_from_buffer();
+        code_size=0;
+        pause=false;
+    }
     PIC_sendEOI(1);
 }
 uint8_t switch_scancode_set(uint8_t set){
@@ -137,96 +160,68 @@ void disable_translation(){
 }
 
 
-_Bool read_from_buffer(uint16_t *data){ //0 on success, 1 on failure
+void read_from_buffer(){
     if(head == tail){
-        return 1;
+        return;
     }
-    uint16_t value = 0;
+    uint8_t val = 0;
     if (keyboard_buffer[tail] == 0xE0){ //all scancodes that start with 0xE0 are at least 2 bytes
         if(keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE] == 0xF0){
             if(keyboard_buffer[(tail+2)%KEYBOARD_BUFFER_SIZE] == 0x7C){
-                value = PRINTSCREEN_RELEASE; //prntscrn released
+                key_state[KEY_PRNTSCRN]=0;
                 tail = (tail+6)%KEYBOARD_BUFFER_SIZE;
-                *data = value;
-                return 0;
+                push_keyevent(KEY_PRNTSCRN, false);
+                return;
             }
-            value = keyboard_buffer[(tail+2)%KEYBOARD_BUFFER_SIZE]+E0F0_OFFSET; //0xF0 scancodes end at 387, 0xE0 0xF0 go from 387 to 512
+            val = keyboard_buffer[(tail+2)%KEYBOARD_BUFFER_SIZE];
+            key_state[E0_Lookup[val]]=0;
             tail = (tail+3)%KEYBOARD_BUFFER_SIZE;
-            *data = value;
-            return 0;
+            push_keyevent(E0_Lookup[val], false);
+            return;
         }
-        if(keyboard_buffer[tail+1] == 0x12){
-            value = PRINTSCREEN_PRESS; //prntscrn pressed
+        if(keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE] == 0x12){
+            key_state[KEY_PRNTSCRN]=1;
             tail = (tail+4)%KEYBOARD_BUFFER_SIZE;
-            *data = value;
-            return 0;
+            push_keyevent(KEY_PRNTSCRN, true);
+            return;
         }
-        value = keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE] +E0_OFFSET; //regular scancodes end at 131, 0xE0 go from 132-256
+        val = keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE];
+        key_state[E0_Lookup[val]]=1;
         tail = (tail+2)%KEYBOARD_BUFFER_SIZE;
-        *data = value;
-        return 0;
+        push_keyevent(E0_Lookup[val], true);
+        return;
     }
     if(keyboard_buffer[tail] == 0xE1){
-        value = PAUSE; //pause pressed
-        tail = (tail+8)%KEYBOARD_BUFFER_SIZE;
-        *data = value;
-        return 0;
+        tail = (tail+8)%KEYBOARD_BUFFER_SIZE; //pause acts as if instantly released
+        push_keyevent(KEY_PAUSE, true);
+        return;
     }
     if(keyboard_buffer[tail] == 0xF0){
-        value = keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE]+F0_OFFSET; //0xE0 scancodes end at 256, 0xF0 go from 257-387
+        val = keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE];
+        if(val!=KEY_CAPSLOCK && val!=KEY_NUMBER_LOCK && val!=KEY_SCROLL_LOCK) key_state[Regular_Key_Lookup[val]]=0;
         tail = (tail+2)%KEYBOARD_BUFFER_SIZE;
-        *data = value;
-        return 0;
+        push_keyevent(Regular_Key_Lookup[val], false);
+        return;
     }
-    value = keyboard_buffer[tail];
+    val = keyboard_buffer[tail];
+    if(val!=KEY_CAPSLOCK && val!=KEY_NUMBER_LOCK && val!=KEY_SCROLL_LOCK) key_state[Regular_Key_Lookup[val]]=1;
+    else key_state[Regular_Key_Lookup[val]]=!key_state[Regular_Key_Lookup[val]];
     tail = (tail+1)%KEYBOARD_BUFFER_SIZE;
-    *data = value;
-    return 0;
-}
-void update_key_state(uint16_t data){
-
-    if(data > F0_OFFSET && data < PRINTSCREEN_PRESS){ //release codes should be exactly 256 above their press down counterparts
-        key_state[data-F0_OFFSET]=0;
-    }
-    else{
-        key_state[data]=1; //don't really care about prntscrn or pause right now
-        if(data == CAPSLOCK_KEY){
-            capslock_on=!capslock_on;
-        }
-    }
+    push_keyevent(Regular_Key_Lookup[val], true);
     return;
 }
-KeyEvent scancode_to_char(uint16_t keynum){
-    KeyEvent key = {0};
-    if(!key_state[keynum]){
-        return key;
-    }
-    if(keynum>E0_OFFSET && keynum<F0_OFFSET){
-        key.special=1;
-        keynum-=E0_OFFSET;
-    }
-    char keyletter;
-    _Bool shiftOn = key_state[LEFT_SHIFT] || key_state[RIGHT_SHIFT_KEY];
-    if(shiftOn) key.shift=1;
-    if(key_state[LEFT_ALT]) key.alt=1;
-    if(key_state[LEFT_CTRL]) key.ctrl=1;
-    key.scancode=keynum;
-    if (shiftOn ^ capslock_on){
-        keyletter = shift_ascii_map[keynum];
-        key.ascii=keyletter;
-        return key;
-    }
-    keyletter = ascii_map[keynum];
-    key.ascii=keyletter;
-    return key;
-    
-}
-_Bool get_keyevent(KeyEvent *event){
-    uint16_t data;
-    if(read_from_buffer(&data)){ //returns if no new characters
-        return 0;
-    }
-    update_key_state(data);
-    *event = scancode_to_char(data);
-    return 1;
+
+
+void push_keyevent(Keycode code, bool pressed){
+    KeyEvent newevent;
+    newevent.alt=(key_state[KEY_LEFT_ALT]||key_state[KEY_RIGHT_ALT]);
+    newevent.pressed = pressed;
+    newevent.capslock = (key_state[KEY_CAPSLOCK]);
+    newevent.ctrl = (key_state[KEY_LEFT_CTRL]||key_state[KEY_RIGHT_CTRL]);
+    newevent.shift = (key_state[KEY_LEFT_SHIFT]||key_state[KEY_RIGHT_SHIFT]);
+    newevent.numlock = key_state[KEY_NUMBER_LOCK];
+    newevent.keycode = code;
+    newevent.new=true;
+    event_buffer[event_buffer_offset]=newevent;
+    event_buffer_offset=(event_buffer_offset+1)%EVENT_BUFFER_SIZE;
 }

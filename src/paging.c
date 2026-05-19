@@ -2,7 +2,8 @@
 #include <stdint.h>
 #include "kmalloc.h"
 #include "string.h"
-#include "tty.h"
+#include "console.h"
+#include "multiboot.h"
 #include "idt.h"
 #include "process.h"
 #include <stdbool.h>
@@ -13,22 +14,14 @@
 #define USER_PD_AREA 0xD0000000
 extern int*_kernel_endpoint;
 extern void enable_paging();
-typedef struct{
-    uint64_t base_address;
-    uint64_t mem_length;
-    uint32_t region_type;
-    uint32_t acpi_attributes; //note- some bioses will leave this empty
-} Memory_Entry;
 
 
 uint32_t pagenum=0;
-uint32_t kernel_pd;
+uint32_t* kernel_pd;
 uint8_t page_bitmap[MAX_PAGES/8]={0};
 uint8_t kernel_virt_page_bitmap[KERNEL_BITMAP_SIZE]={0};
 uint32_t fbuffer_pages=(4*1024*1280+4095)/4096;
 const uint32_t page_size = 4096;
-const Memory_Entry* memory_map_array = (Memory_Entry*)0xc0010004;
-
 extern ProcessNode* current_process;
 
 
@@ -52,16 +45,18 @@ void page_fault_handler(uint32_t pageaddr, uint32_t errcode){
         alloc_page(pageaddr);
     }
 }
-void paging_setup(){
-    set_memory_bitmap();
+void paging_setup(struct multiboot_tag_mmap* mmap){
+    set_memory_bitmap(mmap);
     reserve_address(0, 0x400000);
-    reserve_address(selected_video_mode->framebuffer, selected_video_mode->framebuffer+selected_video_mode->bpp*selected_video_mode->width+selected_video_mode->height);
+    reserve_address(selected_video_mode->common.framebuffer_addr, selected_video_mode->common.framebuffer_addr+selected_video_mode->common.framebuffer_bpp*selected_video_mode->common.framebuffer_width+selected_video_mode->common.framebuffer_height);
     memset(&kernel_virt_page_bitmap[1024/8], 0xFF, sizeof(kernel_virt_page_bitmap)-4*1024/8); //first table already mapped, last 3 are for screen and recursive
     memset(&get_page_table_virtual(0)[0], 0, 4096); //unmap original identity mapping
     kernel_pd = get_page_table_virtual(1023);
     uint32_t phys_pd = phys_from_virt(kernel_pd);
     asm volatile("mov %0, %%cr3" :: "r"(phys_pd)); //flush tlb
 }
+
+
 uint32_t* get_page_table_virtual(uint32_t dir_index){
    return (uint32_t*)(0xFFC00000+dir_index*page_size);
 }
@@ -77,23 +72,25 @@ uint32_t phys_from_virt(void* virt) {
     uint32_t phys_base = entry & 0xFFFFF000;
     return phys_base | offset;
 }
-void set_memory_bitmap(){
-    const uint32_t memory_map_length = *((uint32_t*)0x10000);
-    for(int i=0; i<memory_map_length; i++){
-        if(memory_map_array[i].region_type==1 && pagenum<MAX_PAGES){ // 1 signals usable memory
-            uint32_t offset = 0;
-            uint32_t start = memory_map_array[i].base_address;
-            start = (start%page_size==0) ? start : ((start/page_size)+1)*page_size;
-            while(start+offset<=memory_map_array[i].base_address+memory_map_array[i].mem_length+page_size){
-                page_bitmap[(start+offset)/(8*page_size)] |= (1<<(((start+offset)/page_size)%8)); //1 is free, 0 is used
+void set_memory_bitmap(struct multiboot_tag_mmap* mmap){
+    uint8_t *ptr = (uint8_t*)mmap->entries;
+    uint32_t total_entries = (mmap->size - sizeof(*mmap)) / mmap->entry_size;
+    for(int i=0; i<total_entries; i++){
+        struct multiboot_mmap_entry *e = (struct multiboot_mmap_entry*)ptr;
+        if(e->type==1 && pagenum<MAX_PAGES){ // 1 signals usable memory
+            uint64_t start = e->addr;
+            uint64_t end = e->addr + e->len;
+            start = (start+page_size-1)& ~(page_size-1);
+            for(uint64_t addr = start; addr+page_size <= end && pagenum < MAX_PAGES; addr += page_size){
+                uint32_t page_index = addr>>12; //same as addr/page_size but no 64 bit division
+                page_bitmap[page_index/8]|=(1<<(page_index%8));
                 pagenum++;
-                if(pagenum==MAX_PAGES) break;
-                offset+=page_size;
             }
         }
+        ptr+=mmap->entry_size;
     }
-    uint32_t aligned_fbuffer =selected_video_mode->framebuffer-(selected_video_mode->framebuffer%4096);
-    uint32_t starting_page = aligned_fbuffer/4096;
+    uint32_t aligned_fbuffer =selected_video_mode->common.framebuffer_addr-(selected_video_mode->common.framebuffer_addr&0xFFF);
+    uint32_t starting_page = aligned_fbuffer>>12;
     for(int i=0; i<fbuffer_pages; i++){
         page_bitmap[(starting_page+i)/8]&=~(1<<((starting_page+i)%8));
     }
@@ -114,8 +111,8 @@ void unreserve_address(uint32_t start, uint32_t end){
 }
 
 uint32_t alloc_page(uint32_t virt_addr){
-    uint32_t virtpage=virt_addr/4096;
-    uint32_t normalized_virtpage = (virt_addr-OFFSET)/4096;
+    uint32_t virtpage=virt_addr>>12;
+    uint32_t normalized_virtpage = (virt_addr-OFFSET)>>12;
     if(virt_addr>=0xC0000000){
         if(kernel_virt_page_bitmap[normalized_virtpage/8]&(1<<(normalized_virtpage%8))){
             kernel_virt_page_bitmap[normalized_virtpage/8]&=~(1<<(normalized_virtpage%8));
@@ -166,7 +163,7 @@ Page create_process_address_space(){
     uint32_t phys_pd = phys_from_virt(pd);
     pd[1023]=phys_pd|0x3;
     memset(&pd[0], 0, 768*sizeof(uint32_t)); 
-    Page user_pd = {phys_pd, pd};
+    Page user_pd = {phys_pd, (uint32_t)pd};
     return user_pd;
 }
 
@@ -231,7 +228,7 @@ uint32_t create_new_table(uint32_t addr){
     else physaddr |= (1<<2); //user bit 
     dir[tablenum]=physaddr;
     void* table_va = (void*)(0xFFC00000)+(tablenum<<12);
-    invlpg(table_va);
+    //invlpg(table_va);
     memset(get_page_table_virtual(tablenum), 0, 4096);
     return physaddr;
 }

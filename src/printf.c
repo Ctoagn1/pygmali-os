@@ -32,7 +32,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "tty.h"
+#include "console.h"
 
 #include "printf.h"
 

@@ -1,12 +1,22 @@
+
+global framebuffer_1
 extern _bss_start
 extern _bss_end
 extern kernel_main
 extern _stack_top
 global _kernel_start
 
+magic_num:
+dd 0
+multiboot_ptr:
+dd 0
+
 virtual_offset equ 0xc0000000
 section .text
+
 _kernel_start:
+    mov [magic_num-virtual_offset], eax
+    mov [multiboot_ptr-virtual_offset], ebx
     mov eax, _bss_start - virtual_offset
 zero_bss:
     mov dword [eax], 0
@@ -45,24 +55,6 @@ inc ecx
 cmp ecx, 1024
 jne kernel_map_setup
 
-xor ecx, ecx
-movzx ebx, word [0xf000+18]
-movzx eax, word [0xf000+20]
-mul ebx
-mov ebx, [0xf000+40] ;eax has number of pixels, ebx holds framebuffer address
-shr eax, 10 ;4 bytes per pixel, 4096 bytes per page
-
-
-framebuffer_setup:
-    mov edx, ecx
-    shl edx, 12
-    lea esi, [ebx+edx]
-    or esi, 3
-    mov [framebuffer_1-virtual_offset+ecx*4], esi
-    inc ecx
-    cmp ecx, eax
-    jne framebuffer_setup
-
 init_paging:
 mov esp, _stack_top
 mov ebp, esp
@@ -71,12 +63,18 @@ mov cr3, eax
 mov eax, cr0
 or eax, 0x80000000
 mov cr0, eax
-jmp high_mapping + virtual_offset
+jmp high_mapping
 mov eax, cr4
 or eax, 0b10000000 ; enable global pages
 high_mapping:
-call kernel_main
+    mov eax, [magic_num]
+    mov ebx, [multiboot_ptr]
+    push ebx
+    push eax
+call kernel_main + virtual_offset
 err:
     cli
     hlt
     jmp err
+
+

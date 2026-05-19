@@ -1,130 +1,47 @@
 #ifndef KEYBOARD_HANDLER
 #define KEYBOARD_HANDLER
-#define F9_KEY 0x01
-#define F5_KEY 0x03
-#define F3_KEY 0x04
-#define F1_KEY 0x05
-#define F2_KEY 0x06
-#define F12_KEY 0x07
-#define F10_KEY 0x09
-#define F8_KEY 0x0A
-#define F6_KEY 0x0B
-#define F4_KEY 0x0C
-#define TAB_KEY 0x0D
-#define BACK_TICK 0x0E
-#define LEFT_ALT 0x11
-#define LEFT_SHIFT 0x12
-#define LEFT_CTRL 0x14
-#define Q_KEY 0x15
-#define _1_KEY 0x16
-#define Z_KEY 0x1A
-#define S_KEY 0x1B
-#define A_KEY 0x1C
-#define W_KEY 0x1D
-#define _2_KEY 0x1E
-#define C_KEY 0x21
-#define X_KEY 0x22
-#define D_KEY 0x23
-#define E_KEY 0x24
-#define _4_KEY 0x25
-#define _3_KEY 0x26
-#define SPACE_KEY 0x29
-#define V_KEY 0x2A
-#define F_KEY 0x2B
-#define T_KEY 0x2C
-#define R_KEY 0x2D
-#define _5_KEY 0x2E
-#define N_KEY 0x31
-#define B_KEY 0x32
-#define H_KEY 0x33
-#define G_KEY 0x34
-#define Y_KEY 0x35
-#define _6_KEY 0x36
-#define M_KEY 0x3A
-#define J_KEY 0x3B
-#define U_KEY 0x3C
-#define _7_KEY 0x3D
-#define _8_KEY 0x3E
-#define COMMA_KEY 0x41
-#define K_KEY 0x42
-#define I_KEY 0x43
-#define O_KEY 0x44
-#define _0_KEY 0x45
-#define _9_KEY 0x46
-#define PERIOD_KEY 0x49
-#define SLASH_KEY 0x4A
-#define L_KEY 0x4B
-#define SEMICOLON_KEY 0x4C
-#define P_KEY 0x4D
-#define MINUS_KEY 0x4E
-#define APOSTROPHE_KEY 0x52
-#define OPEN_BRACKET_KEY 0x54
-#define EQUALS_KEY 0x55
-#define CAPSLOCK_KEY 0x58
-#define RIGHT_SHIFT_KEY 0x59
-#define ENTER_KEY 0x5A
-#define CLOSED_BRACKET_KEY 0x5B
-#define BACKSLASH_KEY 0x5D
-#define BACKSPACE_KEY 0x66
-#define KEYPAD_1_KEY 0x69
-#define KEYPAD_4_KEY 0x6B
-#define KEYPAD_7_KEY 0x6C
-#define KEYPAD_0_KEY 0x70
-#define KEYPAD_PERIOD_KEY 0x71
-#define KEYPAD_2_KEY 0x72
-#define KEYPAD_5_KEY 0x73
-#define KEYPAD_6_KEY 0x74
-#define KEYPAD_8_KEY 0x75
-#define ESCAPE_KEY 0x76
-#define NUMBERLOCK_KEY 0x77
-#define F11_KEY 0x78
-#define KEYPAD_PLUS_KEY 0x79
-#define KEYPAD_3_KEY 0x7A
-#define KEYPAD_MINUS_KEY 0x7B
-#define KEYPAD_ASTERISK_KEY 0x7C
-#define KEYPAD_9_KEY 0x7D
-#define KSCROLLLOCK_KEY 0x7E
-#define F7_KEY 0x83
-#define CURSOR_DOWN 0x72
-#define CURSOR_UP 0x75
-#define CURSOR_RIGHT 0x74
-#define CURSOR_LEFT 0x6B
+
 #define KEYBOARD_BUFFER_SIZE 256
 #define INPUT_BUFFER_SIZE 1024
 #define KEYBOARD_SIZE 512
 #define ASCII_MAP_SIZE 256
-#define E0_OFFSET 131
-#define F0_OFFSET 256
-#define E0F0_OFFSET 387
-#define PRINTSCREEN_PRESS 513
-#define PRINTSCREEN_RELEASE 514
-#define PAUSE 515
 #define KEYBOARD_DATA 0x60
 #define KEYBOARD_COMMAND 0x64
 #include <stdint.h>
+#include <stdbool.h>
+
+
+
+typedef enum{
+    KEY_NONE = 0,
+    KEY_A, KEY_B, KEY_C, KEY_D, KEY_E, KEY_F, KEY_G, KEY_H, KEY_I, KEY_J, KEY_K, KEY_L, KEY_M, KEY_N, KEY_O, KEY_P, KEY_Q, KEY_R, KEY_S, KEY_T, KEY_U, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z,
+    KEY_BACK_TICK, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUALS,
+    KEY_OPEN_BRACKET, KEY_CLOSE_BRACKET, KEY_BACKSLASH, KEY_SEMICOLON, KEY_APOSTROPHE, KEY_COMMA, KEY_PERIOD, KEY_SLASH,
+    KEY_ESC, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12, KEY_HOME, KEY_END, KEY_INSERT, KEY_DELETE,
+    KEY_BACKSPACE, KEY_ENTER, KEY_LEFT_SHIFT, KEY_RIGHT_SHIFT, KEY_CAPSLOCK, KEY_TAB, KEY_FN, KEY_LEFT_CTRL, KEY_RIGHT_CTRL, KEY_LEFT_ALT, KEY_RIGHT_ALT, KEY_NUMBER_LOCK, KEY_PRNTSCRN, KEY_PGUP, KEY_PGDN, 
+    KEYPAD_1, KEYPAD_2, KEYPAD_3, KEYPAD_4, KEYPAD_5, KEYPAD_6, KEYPAD_7, KEYPAD_8, KEYPAD_9, KEYPAD_0, KEYPAD_PLUS, KEYPAD_MINUS, KEYPAD_DIV, KEYPAD_MUL, KEYPAD_DEC,
+    CURSOR_UP, CURSOR_DOWN, CURSOR_LEFT, CURSOR_RIGHT, KEY_SPACE, KEY_SCROLL_LOCK,
+    KEY_WWW_SEARCH, KEY_PREV_TRACK, KEY_WWW_REFRESH, KEY_VOL_DOWN, KEY_VOL_UP, KEY_MUTE, KEY_WWW_FAVORITES, KEY_LEFT_GUI, KEY_RIGHT_GUI, KEY_WWW_STOP, KEY_CALCULATOR, KEY_APPS, KEY_WWW_FORWARD, KEY_WWW_BACK, KEY_PLAY_PAUSE, KEY_ACPI_POWER, KEY_STOP, KEY_ACPI_SLEEP,
+    KEY_MY_COMPUTER, KEY_EMAIL, KEY_NEXT_TRACK, KEY_MEDIA_SELECT, KEY_ACPI_WAKE, KEY_PAUSE
+} Keycode;
+
 
 typedef struct{
-    uint8_t scancode;
-    char ascii;
-    _Bool fn;
-    _Bool shift;
-    _Bool ctrl;
-    _Bool alt;
-    _Bool special;
+    Keycode keycode;
+    bool pressed;
+    bool shift;
+    bool capslock;
+    bool ctrl;
+    bool alt;
+    bool numlock;
+    bool new;
 }KeyEvent;
+
+#define EVENT_BUFFER_SIZE 256
 void write_to_buffer_wrapper();
-_Bool read_from_buffer(uint16_t *data);
+void write_to_buffer();
 uint8_t switch_scancode_set(uint8_t set);
-void update_key_state(uint16_t data);
-KeyEvent scancode_to_char(uint16_t keynum);
-void screen_writer();
-void add_to_input_buffer(char newinput);
-void remove_from_input_buffer();
-void clear_input_buffer();
 void disable_translation();
-_Bool get_keyevent(KeyEvent *event);
-extern char input_buffer[INPUT_BUFFER_SIZE];
-extern _Bool key_state[KEYBOARD_SIZE];
-extern char ascii_map[ASCII_MAP_SIZE];
-extern char shift_ascii_map[ASCII_MAP_SIZE];
+void read_from_buffer();
+void push_keyevent(Keycode code, bool pressed);
 #endif

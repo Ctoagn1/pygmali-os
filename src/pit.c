@@ -27,7 +27,6 @@ Bits         Usage
 #include <stdint.h>
 #include "pic.h"
 #include "pit.h"
-#include "note_definitions.h"
 uint64_t ms_timer=0;
 Note note_table[] = {
     {33, "C1"}, {35, "CSHARP1"}, {37, "D1"}, {39, "DSHARP1"},
