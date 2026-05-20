@@ -390,22 +390,7 @@ int extend_file(int cluster){
     kfree(null_sector);
     return new_cluster;
 }
-char* append_path(char* filepath){ //caller must free
-    if(filepath[0]=='/'){
-        return strdup(filepath);
-    }
-    int wd_len=strlen(working_dir);
-    int fp_len=strlen(filepath);
-    if (fp_len==0) return strdup(working_dir);
-    _Bool add_slash=!(working_dir[wd_len-1]=='/');
-    char* new_filepath = kmalloc(fp_len+wd_len+add_slash+1);//1 for null terminator
-    if(!new_filepath) return NULL;
-    memcpy(new_filepath, working_dir, wd_len);
-    if(add_slash)new_filepath[wd_len]='/';
-    memcpy(new_filepath+wd_len+add_slash, filepath, fp_len);
-    new_filepath[wd_len+add_slash+fp_len]='\0';
-    return new_filepath;
-}
+
 File_Location get_file_location(char* filename, LookupMode mode){
     int slash=-1;
     File_Location not_found = {-1, -1, -1};

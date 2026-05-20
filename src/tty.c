@@ -230,8 +230,7 @@ void keyevent_translate(){
 	new_event->new=false;
 	event_buffer_index=(event_buffer_index+1)%EVENT_BUFFER_SIZE;
 	if(!new_event->pressed) return;
-    char c=0; (new_event->keycode >= KEY_BACK_TICK &&
-             new_event->keycode <= KEY_SLASH);
+    char c=0; 
 	if(new_event->ctrl){
 		if(!(new_event->keycode>=KEY_A && new_event->keycode<=KEY_SLASH || new_event->keycode==KEY_SPACE)) return;
 		char val = Ctrl_Lookup[new_event->keycode];

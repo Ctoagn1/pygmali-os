@@ -39,6 +39,7 @@ void mega_wait(){ //disk can take 400ns, ~15 io_waits
         io_wait();
     }
 }
+
 uint16_t* disk_info(){
     int timer=10000;
     outb(bus_select+DRIVE_REGISTER_OFFSET, 0b11100000 | (is_slave_drive<<4)); //bits 7 and 5 are always set, 6 is set for LBA (0 is cylinder-head-sector, obsolete), 4 is master if 0, slave if 1, 3-0 are top bits of lba address, 0000 since it's the first sector
