@@ -13,7 +13,7 @@ OBJS := $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(C_SRCS)) $(OBJDIR)/gdtfind.o $(
 KERNEL = pygmali.ker
 ISO_DIR = isodir
 
-CFLAGS = -std=gnu99 -ffreestanding -O0 -g -Wall -Wextra -I$(INCDIR)
+CFLAGS = -std=gnu99 -ffreestanding -O0 -g -Wall -Wextra -I$(INCDIR) -Wall -Wextra -Werror
 LDFLAGS = -T linker.ld -ffreestanding -O0 -nostdlib -lgcc
 AFLAGS = -f elf32
 
@@ -47,7 +47,7 @@ fs: $(KERNEL)
 	./makeiso.sh
 
 run : 
-	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -cdrom pygmali.iso -m 512M
+	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -cdrom pygmali.iso -m 512M -S -s
 
 clean:
 	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pygmalios.iso

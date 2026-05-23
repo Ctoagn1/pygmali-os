@@ -16,6 +16,11 @@ framebuffer_tag:
     dd 32 ;depth
 framebuffer_tag_end:
 ALIGN 8
+dw 1
+dw 0
+dd 16
+dd 3
+dd 0
 end_tag:
     dw 0
     dw 0

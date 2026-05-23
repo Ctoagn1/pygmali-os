@@ -174,7 +174,7 @@ void read_from_buffer(){
                 return;
             }
             val = keyboard_buffer[(tail+2)%KEYBOARD_BUFFER_SIZE];
-            key_state[E0_Lookup[val]]=0;
+            key_state[(unsigned char)E0_Lookup[val]]=0;
             tail = (tail+3)%KEYBOARD_BUFFER_SIZE;
             push_keyevent(E0_Lookup[val], false);
             return;
@@ -186,7 +186,7 @@ void read_from_buffer(){
             return;
         }
         val = keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE];
-        key_state[E0_Lookup[val]]=1;
+        key_state[(unsigned char)E0_Lookup[val]]=1;
         tail = (tail+2)%KEYBOARD_BUFFER_SIZE;
         push_keyevent(E0_Lookup[val], true);
         return;
@@ -198,14 +198,14 @@ void read_from_buffer(){
     }
     if(keyboard_buffer[tail] == 0xF0){
         val = keyboard_buffer[(tail+1)%KEYBOARD_BUFFER_SIZE];
-        if(val!=KEY_CAPSLOCK && val!=KEY_NUMBER_LOCK && val!=KEY_SCROLL_LOCK) key_state[Regular_Key_Lookup[val]]=0;
+        if(val!=KEY_CAPSLOCK && val!=KEY_NUMBER_LOCK && val!=KEY_SCROLL_LOCK) key_state[(unsigned char)Regular_Key_Lookup[val]]=0;
         tail = (tail+2)%KEYBOARD_BUFFER_SIZE;
         push_keyevent(Regular_Key_Lookup[val], false);
         return;
     }
     val = keyboard_buffer[tail];
-    if(val!=KEY_CAPSLOCK && val!=KEY_NUMBER_LOCK && val!=KEY_SCROLL_LOCK) key_state[Regular_Key_Lookup[val]]=1;
-    else key_state[Regular_Key_Lookup[val]]=!key_state[Regular_Key_Lookup[val]];
+    if(val!=KEY_CAPSLOCK && val!=KEY_NUMBER_LOCK && val!=KEY_SCROLL_LOCK) key_state[(unsigned char)Regular_Key_Lookup[val]]=1;
+    else key_state[(unsigned char)Regular_Key_Lookup[val]]=!key_state[(unsigned char)Regular_Key_Lookup[val]];
     tail = (tail+1)%KEYBOARD_BUFFER_SIZE;
     push_keyevent(Regular_Key_Lookup[val], true);
     return;

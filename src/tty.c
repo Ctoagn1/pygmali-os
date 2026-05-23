@@ -201,13 +201,13 @@ void handle_sequence(char command, int params[4], int param_count){
 		case 'J':
 			uint64_t blank = (uint64_t)term.bg<<32|term.fg<<8|0x20;
 			if(params[0]==2){
-				for(int i=0; i<textbuffer_size; i++){
+				for(unsigned int i=0; i<textbuffer_size; i++){
 					terminal_buffer[i]=blank;
 				}
 			}
 			if(params[0]==0){
 				int index = term.terminal_row*textbuffer_width+term.terminal_column;
-				for(int i=index; i<textbuffer_size-index; i++){
+				for(unsigned int i=index; i<textbuffer_size-index; i++){
 					terminal_buffer[i]=blank;
 				}
 			}
@@ -232,9 +232,9 @@ void keyevent_translate(){
 	if(!new_event->pressed) return;
     char c=0; 
 	if(new_event->ctrl){
-		if(!(new_event->keycode>=KEY_A && new_event->keycode<=KEY_SLASH || new_event->keycode==KEY_SPACE)) return;
+		if(!((new_event->keycode>=KEY_A && new_event->keycode<=KEY_SLASH) || new_event->keycode==KEY_SPACE)) return;
 		char val = Ctrl_Lookup[new_event->keycode];
-		if(val==255) return; //signals invalid ctrl char
+		if((unsigned char)val==255) return; //signals invalid ctrl char
     }
 	else if(((new_event->keycode>=KEY_A && new_event->keycode<=KEY_Z) || new_event->keycode==KEY_SPACE) && new_event->pressed){
 		if(new_event->shift^new_event->capslock){
@@ -291,6 +291,7 @@ void flush_buffer(){
 }
 
 int stdin_read(File* f, void* buf, int n){
+	(void)f;
 	char *bytes = buf;
 	int bytes_read = 0;
 	while (bytes_read < n) {
@@ -311,6 +312,7 @@ int stdin_read(File* f, void* buf, int n){
 
 
 int stdout_write(File* f, const void* buf, int n){
+	(void)f;
 	const char *bytes = buf;
 	for(int i=0; i<n; i++){
 		kernel_tty.stdout_buffer[(kernel_tty.stdout_write_index+i)%STDOUT_SIZE]=bytes[i];

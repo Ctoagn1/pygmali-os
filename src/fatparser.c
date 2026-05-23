@@ -16,7 +16,7 @@ uint32_t sectors_per_fat;
 uint32_t root_cluster;
 uint64_t first_data_sector;
 char* working_dir;
-
+/*
 uint32_t sector_of_cluster(int clusternum){
     return((clusternum-2)*sectors_per_cluster)+first_data_sector; //clusters 0 and 1 are reserved, so -2
 }
@@ -642,4 +642,4 @@ int create_file(char* filename, FileType type){
     modify_fat(newcluster, 0x0FFFFFF8);
     return newcluster;
 
-}
+}*/

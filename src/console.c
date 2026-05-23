@@ -48,7 +48,7 @@ uint64_t extended_terminal_buffer[EXTRA_TEXT_BUFFER_SIZE];
 void map_display(){
 	uintptr_t* buff_addr = (&framebuffer_1);
 	uint64_t pagecount = (selected_video_mode->common.framebuffer_height*selected_video_mode->common.framebuffer_width*selected_video_mode->common.framebuffer_bpp>>3)>>12;
-	for(int i=0; i<pagecount; i++){
+	for(uint64_t i=0; i<pagecount; i++){
 	buff_addr[i]=selected_video_mode->common.framebuffer_addr+(i<<12)+3;
 	}
 }
@@ -73,7 +73,7 @@ void terminal_initialize(struct multiboot_tag_framebuffer* vid_mode ){
 
 
 void screen_reset(){
-	for(int i=0; i<(selected_video_mode->common.framebuffer_width*selected_video_mode->common.framebuffer_height); i++){
+	for(uint32_t i=0; i<(selected_video_mode->common.framebuffer_width*selected_video_mode->common.framebuffer_height); i++){
 		((uint32_t*)virtual_framebuffer)[i]=term.bg;
 	}
 }
@@ -96,7 +96,7 @@ void terminal_putentryat(char c, size_t x, size_t y)
 	text_to_pixels(index);
 }
 void reload_buffer(){
-	for(int i=0; i<textbuffer_size; i++){
+	for(uint32_t i=0; i<textbuffer_size; i++){
 		text_to_pixels(i);
 	}
 }
@@ -112,7 +112,7 @@ void text_to_pixels(uint32_t index){
     uint32_t pixel_x = cell_x * KERNEL_FONT_WIDTH;
     uint32_t pixel_y = cell_y * KERNEL_FONT_HEIGHT;
 	uint32_t* memorydest = memorybuffer+pixel_y*selected_video_mode->common.framebuffer_width+pixel_x;
-	char* bitmap = font8x16[text];
+	unsigned char* bitmap = font8x16[(unsigned char)text];
 	if(text=='\0'){
 		for(int i=0; i<KERNEL_FONT_HEIGHT; i++){
 			for(int j=0; j<KERNEL_FONT_WIDTH; j++){
@@ -168,6 +168,7 @@ void disable_cursor()
 void update_cursor(int x, int y)
 {
 	uint32_t pos = y * textbuffer_width + x;
+	(void) pos;
 	return;
 
 }

@@ -1,18 +1,25 @@
 #include "vfs.h"
+#include "ramfs.h"
 struct mountpoint_t* root_mountpoint;
+
+fs_driver* driver_array[FS_DRIVER_COUNT];
 void tokenize_path(const char* path, path_tokens_t* out) {
     int i = 0;
     out->count = 0;
 
     while (path[i]) {
 
-        while (path[i] == '/') i++;
+        while (path[i] == '/'){
+            i++;
+        }
 
         if (!path[i]) break;
 
         int start = i;
 
-        while (path[i] && path[i] != '/') i++;
+        while (path[i] && path[i] != '/'){
+            i++;
+        }
 
         int len = i - start;
 
@@ -22,12 +29,14 @@ void tokenize_path(const char* path, path_tokens_t* out) {
     }
 }
 
-uint32_t cache_hash(uint64_t id){
-    uint64_t y = id + 0x9E3779B97F4A7C15;
-    y = (y^(y>>30)) * 0xBF58476D1CE4E5B9;
-    y = (y^(y>>27)) * 0x94D049BB133111EB;
-    return (y^(y>>31))%VNODE_CACHE_SIZE;
-} 
+uint32_t cache_hash(uint64_t x) {
+    x ^= x >> 30;
+    x *= 0xbf58476d1ce4e5b9ULL;
+    x ^= x >> 27;
+    x *= 0x94d049bb133111ebULL;
+    x ^= x >> 31;
+    return x%VNODE_CACHE_SIZE;
+}
 
 uint64_t dentry_hash(uint64_t id, const char* name, size_t len){
     for(size_t i=0; i<len; i++){
@@ -38,9 +47,10 @@ uint64_t dentry_hash(uint64_t id, const char* name, size_t len){
 }
 
 
-int vfs_mount(const char* target, fs_instance_t* fs){
+fs_instance_t* vfs_mount(const char* target, void* device, const fs_driver* driver){
+    fs_instance_t* fs = driver->mount(device);
     mountpoint_t *new_mountpoint = kmalloc(sizeof(mountpoint_t));
-    if(new_mountpoint == NULL) return -1;
+    if(new_mountpoint == NULL) return NULL;
     new_mountpoint->fs_instance = fs;
     strcpy(new_mountpoint->mountpoint, target);
     mountpoint_t* list = root_mountpoint;
@@ -55,7 +65,7 @@ int vfs_mount(const char* target, fs_instance_t* fs){
         }
         list=list->next;
     }
-    return 0;
+    return fs;
 }
 
 int vfs_umount(const char *target){
@@ -108,7 +118,10 @@ mountpoint_t* get_mountpoint(const char* path){
     }
     return best;
 }
+#define PATH_STACK_SIZE 64
 vfs_node* resolve(const char* path){
+    uint64_t stack[64];
+    int sp = 0;
     mountpoint_t* mount = get_mountpoint(path);
     if(!mount) return NULL;
     const char* fs_path = &path[strlen(mount->mountpoint)];
@@ -116,83 +129,96 @@ vfs_node* resolve(const char* path){
     path_tokens_t* pathnodes = kmalloc(sizeof(path_tokens_t));
     if(!pathnodes) return NULL;
     tokenize_path(fs_path, pathnodes);
-    int i=0;
-    vfs_node* current = mount->fs_instance->root;
-    vfs_node* parent = mount->fs_instance->root;
+    uint64_t current = mount->fs_instance->root_inode_id;
+    
     path_token_t* tok = pathnodes->tokens;
-    while(i<pathnodes->count){
-        if(i<pathnodes->count-1 && current->attributes.type!=VNODE_DIR && current->attributes.type!=VNODE_SYMLINK){
-            goto err;
-        }
+    for(int i=0; i<pathnodes->count; i++){
         if(tok[i].len==1 && *tok[i].start=='.'){
-            i++;
             continue;
         }
-        if(tok[i].len==2 && *tok[i].start=='.' && *(tok[i].start+1)=='.'){
-            i++;
-            if(current->parent)current=current->parent;
+        if(tok[i].len==2 && *tok[i].start=='.' && *(tok[i].start+1)=='.'){;
+            if(sp>0) current = stack[--sp];
             continue;
         }
-        parent = current;
-        vfs_node* next = resolve_dentry(current, tok[i].start, tok[i].len, mount->fs_instance);
-        if(!next){
-            uint64_t id = mount->fs_instance->ops->lookup(current, tok[i].start, tok[i].len);
-            if(id==0) goto err;
-            current = get_vnode(mount->fs_instance, id);
-            if(current==NULL){
-                goto err;
-            }   
-            current->parent = parent;
-            create_dentry(parent, current, tok[i].start, tok[i].len, mount->fs_instance);
-            i++;
+        int64_t next = resolve_dentry(mount->fs_instance, current, tok[i].start, tok[i].len);
+        if(next == -ENOENT){
+            vfs_node* dir = get_vnode(mount->fs_instance, current);
+            next = mount->fs_instance->driver->ops->lookup(dir, tok[i].start, tok[i].len);
+            put_vnode(dir);
+            if(next==-ENOENT) goto err; 
+            create_dentry(mount->fs_instance, current, next, tok[i].start, tok[i].len);
         }
-        else{
-            current=next;
-            i++;
-        }
+        if(sp>=PATH_STACK_SIZE) goto err;
+        stack[sp++] = current;
+        current = next;
     }
     kfree(pathnodes);
-    return current;
+    return get_vnode(mount->fs_instance, current);
     err:
     kfree(pathnodes);
     return NULL;
 
 }
-
-int create_dentry(vfs_node* parent, vfs_node* target, const char* name, size_t name_len, fs_instance_t* fs){
-    uint64_t hash = dentry_hash(parent->id, name, name_len);
+int delete_dentry(vfs_node* parent, const char* filename, size_t filename_len){
+    uint64_t hash = dentry_hash(parent->id, filename, filename_len);
+    dentry* iter = parent->fs->dentry_cache[hash];
+    dentry* prev = NULL;
+    while(iter){
+        if(iter->parent == parent->id && iter->namelen == filename_len && strncmp(iter->filename, filename, filename_len)==0){
+            if(prev==NULL) parent->fs->dentry_cache[hash]=iter->next;
+            else prev->next=iter->next;
+            kfree(iter);
+            return 0;
+        }
+        prev=iter;
+        iter=iter->next;
+    }
+    return -ENOENT;
+}
+int create_dentry(fs_instance_t* fs, uint64_t parent_id, uint64_t child_id, const char* name, size_t name_len){
+    uint64_t hash = dentry_hash(parent_id, name, name_len);
     dentry* iter = fs->dentry_cache[hash];
     while(iter){
-        if(iter->parent == parent && iter->namelen == name_len && strncmp(iter->filename, name, name_len)==0){
-            return -1;
+        if(iter->parent == parent_id && iter->namelen == name_len && strncmp(iter->filename, name, name_len)==0){
+            return -EEXIST;
         }
         iter=iter->next;
     }
     dentry* new_dentry = kmalloc(sizeof(dentry));
-    if(!new_dentry) return -1;
+    if(!new_dentry) return -ENOMEM;
     memcpy(new_dentry->filename, name, name_len);
+    new_dentry->filename[name_len]='\0';
     new_dentry->namelen = name_len;
-    new_dentry->parent = parent;
-    new_dentry->target = target;
+    new_dentry->parent = parent_id;
+    new_dentry->target = child_id;
     new_dentry->next = fs->dentry_cache[hash];
     fs->dentry_cache[hash]=new_dentry;
     return 0;
 }
-vfs_node* resolve_dentry(vfs_node* parent, const char* filename, size_t filename_len, fs_instance_t* fs){
-    uint64_t hash = dentry_hash(parent->id, filename, filename_len);
+
+int64_t resolve_dentry(fs_instance_t* fs, uint64_t parent, const char* filename, size_t filename_len){
+    uint64_t hash = dentry_hash(parent, filename, filename_len);
     dentry* dent = fs->dentry_cache[hash];
     while(dent){
         if(dent->parent==parent && dent->namelen == filename_len && strncmp(dent->filename, filename, filename_len)==0)
             return dent->target;
         dent=dent->next;
     }
-    return NULL;
+    return -ENOENT;
+}
+void put_vnode(vfs_node* node){
+    if(node->refcount>0)
+    node->refcount--;
+    return;
 }
 vfs_node* get_vnode(fs_instance_t* fs_instance, uint64_t id){
     int hash = cache_hash(id);
     vfs_node_list* iter = fs_instance->vnode_cache[hash];
     while(iter){
-        if(iter->node->id==id)return iter->node;
+        if(iter->node->id==id){
+            iter->node->refcount++;
+            return iter->node;
+        }
         iter=iter->next;
     }
     vfs_node_list* new_entry = kmalloc(sizeof(vfs_node_list));
@@ -204,27 +230,74 @@ vfs_node* get_vnode(fs_instance_t* fs_instance, uint64_t id){
     }
     new_entry->node = new_node;
     new_node->id = id;
+    new_node->refcount = 1;
     new_node->fs = fs_instance;
-    vnode_attr_t attr;
-    int code = fs_instance->ops->getattr(new_entry->node, &attr);
-    if(code!=0){
-        kfree(new_node);
-        kfree(new_entry);
-        return NULL;
+    new_node->fs_internal = fs_instance->driver->ops->iget(fs_instance, id);
+    if(!new_node->fs_internal)goto err;
+    stat_info attr = {0};
+    if(fs_instance->driver->ops->getattr){
+        int code = fs_instance->driver->ops->getattr(new_entry->node, &attr);
+        if(code!=0) goto err;
     }
-    memcpy(&new_entry->node->attributes, &attr, sizeof(vnode_attr_t));
+    memcpy(&new_entry->node->attributes, &attr, sizeof(stat_info));
     new_entry->next = fs_instance->vnode_cache[hash];
     fs_instance->vnode_cache[hash]=new_entry;
     
     return new_entry->node;
+
+    err:
+        kfree(new_node);
+        kfree(new_entry);
+        return NULL;
 }
 int vfs_read(vfs_node* node, void* buf, size_t count, size_t offset){
     if(!node) return -1;
-    if(node->attributes.type!=VNODE_FILE) return -1;
-    return node->fs->ops->read(node, buf, count, offset);
+    if(node->attributes.type==VNODE_DIR) return -EISDIR;
+    return node->fs->driver->ops->read(node, buf, count, offset);
 }
 int vfs_write(vfs_node* node, const void* buf, size_t count, size_t offset){
     if(!node) return -1;
-    if(node->attributes.type!=VNODE_FILE) return -1;
-    return node->fs->ops->write(node, buf, count, offset);
+    if(node->attributes.type==VNODE_DIR) return -EISDIR;
+    return node->fs->driver->ops->write(node, buf, count, offset);
+}
+int vfs_getdents(vfs_node* dir, fs_dirent* out, size_t size){
+    if(!dir) return -EBADF;
+    if(dir->attributes.type!=VNODE_DIR) return -ENOTDIR;
+    return dir->fs->driver->ops->getdents(dir, out, size);
+    
+}
+int vfs_create(vfs_node* dir, char* filename, uint32_t type, uint64_t* inode ){
+    (void) type;
+
+    if(vfs_lookup(dir, filename)) return -EEXIST;
+    return dir->fs->driver->ops->create(dir, filename, VNODE_FILE, inode);
+}
+int vfs_mkdir(vfs_node* dir, char* filename, uint32_t type, uint64_t* inode){
+    (void)type;
+
+    if(vfs_lookup(dir, filename)) return -EEXIST;
+    return dir->fs->driver->ops->create(dir, filename, VNODE_DIR, inode);
+}
+vfs_node* vfs_lookup(vfs_node* dir, const char* name){
+    int64_t ino = resolve_dentry(dir->fs, dir->id, name, strlen(name));
+    if(ino==-ENOENT){
+        ino = dir->fs->driver->ops->lookup(dir, name, strlen(name));
+        if(ino<0) return NULL;
+
+        create_dentry(dir->fs, dir->id, ino, name, strlen(name));
+    }
+    return get_vnode(dir->fs, ino);
+}
+int vfs_unlink(vfs_node* dir, const char* name){
+    vfs_node* file = vfs_lookup(dir, name);
+    if(!file) return -ENOENT;
+    if(file->attributes.type==VNODE_DIR){
+        put_vnode(file);
+        return -EISDIR;
+    }
+    put_vnode(file);
+    int err = dir->fs->driver->ops->unlink(dir, name);
+    if(err)return err;
+    delete_dentry(dir, name, strlen(name));
+    return 0;
 }

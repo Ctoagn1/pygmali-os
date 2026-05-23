@@ -9,7 +9,7 @@ extern ProcessNode* current_process;
 
 #define KERNEL_BASE 0xC0000000
 
-
+/*
 void syscall_handler(Regs* regs){
     int call_num = regs->eax;
     int returnval=0;
@@ -86,3 +86,4 @@ void reboot()
     outb(0x64, 0xFE);
     asm volatile("hlt");
 }
+*/

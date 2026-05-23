@@ -52,7 +52,7 @@ int close(File* f){
     kfree(f);
     return 0;
 }
-int fd_open(Process *p, const char* filename, int flags, int mode){
+/*int fd_open(Process *p, const char* filename, int flags, int mode){
     File* newfd = kmalloc(sizeof(File));
     newfd->flags = flags;
     newfd->offset = 0;
@@ -66,7 +66,7 @@ int fd_open(Process *p, const char* filename, int flags, int mode){
         return -1;
     }
     return 0;
-}
+}*/
 
 
 

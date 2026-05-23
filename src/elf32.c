@@ -1,4 +1,4 @@
-# include <stdint.h>
+/*# include <stdint.h>
 #include "string.h"
 #include "fd.h"
 typedef struct elf_header{
@@ -77,3 +77,4 @@ int load_elf(void* elf, size_t elf_size){
     }
     return 0;
 }
+*/

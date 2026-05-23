@@ -34,6 +34,7 @@ void invlpg(unsigned long addr) {
 void page_fault_handler(uint32_t pageaddr, uint32_t errcode){
     bool is_user = errcode & 0x4;
     bool is_write = errcode & 0x2;
+    (void)is_write;
     bool present = errcode & 0x1;
     if(present && !is_user){ //protection fault
         panic("PAGE PROTECTION FAULT");
@@ -75,7 +76,7 @@ uint32_t phys_from_virt(void* virt) {
 void set_memory_bitmap(struct multiboot_tag_mmap* mmap){
     uint8_t *ptr = (uint8_t*)mmap->entries;
     uint32_t total_entries = (mmap->size - sizeof(*mmap)) / mmap->entry_size;
-    for(int i=0; i<total_entries; i++){
+    for(unsigned int i=0; i<total_entries; i++){
         struct multiboot_mmap_entry *e = (struct multiboot_mmap_entry*)ptr;
         if(e->type==1 && pagenum<MAX_PAGES){ // 1 signals usable memory
             uint64_t start = e->addr;
@@ -91,7 +92,7 @@ void set_memory_bitmap(struct multiboot_tag_mmap* mmap){
     }
     uint32_t aligned_fbuffer =selected_video_mode->common.framebuffer_addr-(selected_video_mode->common.framebuffer_addr&0xFFF);
     uint32_t starting_page = aligned_fbuffer>>12;
-    for(int i=0; i<fbuffer_pages; i++){
+    for(unsigned int i=0; i<fbuffer_pages; i++){
         page_bitmap[(starting_page+i)/8]&=~(1<<((starting_page+i)%8));
     }
 }
@@ -111,6 +112,9 @@ void unreserve_address(uint32_t start, uint32_t end){
 }
 
 uint32_t alloc_page(uint32_t virt_addr){
+    if(virt_addr==0){
+        panic("NULL POINTER DEREFERENCE");
+    }
     uint32_t virtpage=virt_addr>>12;
     uint32_t normalized_virtpage = (virt_addr-OFFSET)>>12;
     if(virt_addr>=0xC0000000){
@@ -227,7 +231,7 @@ uint32_t create_new_table(uint32_t addr){
     if(is_kernel)physaddr|=(1<<7); //mark global bit, will never be flushed by cr3 switch
     else physaddr |= (1<<2); //user bit 
     dir[tablenum]=physaddr;
-    void* table_va = (void*)(0xFFC00000)+(tablenum<<12);
+    //void* table_va = (void*)(0xFFC00000)+(tablenum<<12);
     //invlpg(table_va);
     memset(get_page_table_virtual(tablenum), 0, 4096);
     return physaddr;

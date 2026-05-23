@@ -2,7 +2,7 @@
 #include "kmalloc.h"
 #include "tty.h"
 #include "fatparser.h"
-#include "fd.h";
+#include "fd.h"
 #define PROCESS_BITMAP_SIZE 0x18000
 #define KERNEL_CS 0x08
 #define KERNEL_DS 0x10
@@ -42,55 +42,56 @@ void initialize_scheduling(){
 
 Process* create_process(const char* name, uintptr_t entry){
     asm volatile("cli");
-    Process p;
-    p.name = strdup(name);
-    p.block_reason=BLOCK_NONE;
+    Process* p = kmalloc(sizeof(Process));
+    if(!p) return NULL;
+    p->name = strdup(name);
+    p->block_reason=BLOCK_NONE;
     for(int i=0; i<PROCESS_NUM; i++){
         if((pid_bitmap[i/8]&(1<<i%8))==0){
-            p.pid=i;
+            p->pid=i;
             pid_bitmap[i/8]|=1<<i%8;
-            p.kernel_stack_top =(uint32_t)kernel_stacks_start-i*USER_KERNEL_STACK_SIZE;
-            alloc_page(p.kernel_stack_top);
-            alloc_page(p.kernel_stack_top-4096);
+            p->kernel_stack_top =(uint32_t)kernel_stacks_start-i*USER_KERNEL_STACK_SIZE;
+            alloc_page(p->kernel_stack_top);
+            alloc_page(p->kernel_stack_top-4096);
             break;
         }
     }
 
     uint32_t *old_cr3 = get_page_table_virtual(1023);
     old_cr3 = (uint32_t*)phys_from_virt(old_cr3);
-    p.page_directory = create_process_address_space();
-    p.page_bitmap = kmalloc(PROCESS_BITMAP_SIZE);
-    p.state = PROC_NEW;
+    p->page_directory = create_process_address_space();
+    p->page_bitmap = kmalloc(PROCESS_BITMAP_SIZE);
+    p->state = PROC_NEW;
 
-    memset(&p.registers, 0, sizeof(Regs));
-    p.registers.cs = USER_CS;
-    p.registers.ss = USER_DS;
-    p.registers.eip = entry;
-    p.registers.useresp = 0xBFFFFFFF;
-    p.registers.eflags = EFLAGS_IF | 0x200;
-    p.fd_table[0]= &stdin_file;
+    memset(&p->registers, 0, sizeof(Regs));
+    p->registers.cs = USER_CS;
+    p->registers.ss = USER_DS;
+    p->registers.eip = entry;
+    p->registers.useresp = 0xBFFFFFFF;
+    p->registers.eflags = EFLAGS_IF | 0x200;
+    p->fd_table[0]= &stdin_file;
     stdin_file.reference_count++;
-    p.fd_table[1]= &stdout_file;
+    p->fd_table[1]= &stdout_file;
     stdout_file.reference_count++;
-    memset(p.page_bitmap, 0xFF, PROCESS_BITMAP_SIZE);
+    memset(p->page_bitmap, 0xFF, PROCESS_BITMAP_SIZE);
     PageNode* endoflist = kmalloc(sizeof(PageNode));
     endoflist->next = NULL;
     endoflist->physical_page = 0;
     endoflist->virtual_page = 0;
-    p.pagelist = endoflist;
+    p->pagelist = endoflist;
 
 
     PageNode* endoftablelist = kmalloc(sizeof(PageNode));
     endoftablelist->next = NULL;
     endoftablelist->physical_page = 0;
     endoftablelist->virtual_page = 0;
-    p.tablelist = endoftablelist;
-    add_process(p);
-    switch_page_directory(p.page_directory.phys);
+    p->tablelist = endoftablelist;
+    add_process(*p);
+    switch_page_directory(p->page_directory.phys);
     switch_page_directory((uint32_t)old_cr3);
 
     asm volatile("sti");
-    return &p;
+    return p;
 }
 
 void idle_task(){
@@ -177,7 +178,7 @@ void schedule(Regs* registers){
     if(current_process->p.state==PROC_NEW){
         *registers = current_process->p.registers;
     }
-    if(current_process->p.state=PROC_RUNNING) current_process->p.state=PROC_READY;
+    if(current_process->p.state==PROC_RUNNING) current_process->p.state=PROC_READY;
     memcpy(&(current_process->p.registers), registers, sizeof(Regs));
 
     do{

@@ -2,40 +2,25 @@
 #define RAMFS
 #include <stdint.h>
 #include "kmalloc.h"
-#include <string.h>
+#include "string.h"
 #include "vfs.h"
 #include <stddef.h>
+#define MAX_INODES 2048
 #define NAME_LEN 128
-#define MAX_RAMFS_FILESIZE 1<<32
-typedef struct{
- char c_magic[6];
- char c_ino[8];
- char c_mode[8];
- char c_uid[8];
- char c_gid[8];
- char c_nlink[8];
- char c_mtime[8];
- char c_filesize[8];
- char c_devmajor[8];
- char c_devminor[8];
- char c_rdevmajor[8];
- char c_rdevminor[8];
- char c_namesize[8];
- char c_check[8];
-}  cpio_newc_header;
+#define MAX_RAMFS_FILESIZE 1<<20
 
 
 struct ramfs_superblock;
 
 typedef struct ramfs_node{
-    size_t name_len;
     uint64_t id;
+    size_t refcount;
+    size_t linkcount;
      
-    struct ramfs_node* parent;
     struct ramfs_dirent* children;
     struct ramfs_superblock* superblock;
 
-    vnode_type_t type;
+    uint32_t type;
     uint8_t* data;
     size_t size;
 } ramfs_node;
@@ -51,10 +36,23 @@ typedef struct ramfs_dirent{
 typedef struct ramfs_superblock{
     ramfs_node* root;
     uint64_t id_count;
+    ramfs_node* inode_map[MAX_INODES];
 }ramfs_superblock;
 
 uint32_t parse_hex(char* s, int len);
-int load_ramfs_from_cpio(void* archive, fs_instance_t* ramfs);
-ramfs_node* ramfs_lookup(ramfs_node* dir, char* filename, size_t len);
-ramfs_node* create_node(ramfs_node* parent, char* filename, size_t len, ramfs_superblock* block);
+int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs);
+uint64_t ramfs_lookup(vfs_node* dir, const char* filename, size_t len);
+int ramfs_create(vfs_node* parent, const char* filename, uint32_t mode, uint64_t* out_inode);
+int ramfs_stat(vfs_node* node, stat_info* info);
+int ramfs_write(vfs_node* inode, const void* buf, size_t size, size_t offset);
+int ramfs_read(vfs_node* node, void* buf, size_t size, size_t offset);
+int ramfs_getdents(vfs_node* node, fs_dirent* buf, size_t bufsize);
+void* ramfs_iget(fs_instance_t* fs, uint64_t id);
+int ramfs_unlink(vfs_node* vnode, const char* name);
+fs_instance_t* create_ramsfs(void* source);
+
+
+
+extern const fs_ops ramfs_ops;
+extern const fs_driver ramfs_driver;
 #endif
