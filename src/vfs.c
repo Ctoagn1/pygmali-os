@@ -94,6 +94,9 @@ int vfs_umount(const char *target){
 }
 
 int is_prefix_mount(const char* path, const char* mnt) {
+    if(strcmp(mnt, "/") == 0)
+    return path[0] == '/';
+
     int i = 0;
     while (mnt[i]) {
         if (path[i] != mnt[i]) return 0;
@@ -145,7 +148,7 @@ vfs_node* resolve(const char* path){
             vfs_node* dir = get_vnode(mount->fs_instance, current);
             next = mount->fs_instance->driver->ops->lookup(dir, tok[i].start, tok[i].len);
             put_vnode(dir);
-            if(next==-ENOENT) goto err; 
+            if(next<0) goto err; 
             create_dentry(mount->fs_instance, current, next, tok[i].start, tok[i].len);
         }
         if(sp>=PATH_STACK_SIZE) goto err;
@@ -251,12 +254,12 @@ vfs_node* get_vnode(fs_instance_t* fs_instance, uint64_t id){
         return NULL;
 }
 int vfs_read(vfs_node* node, void* buf, size_t count, size_t offset){
-    if(!node) return -1;
+    if(!node) return -ENOENT;
     if(node->attributes.type==VNODE_DIR) return -EISDIR;
     return node->fs->driver->ops->read(node, buf, count, offset);
 }
 int vfs_write(vfs_node* node, const void* buf, size_t count, size_t offset){
-    if(!node) return -1;
+    if(!node) return -ENOENT;
     if(node->attributes.type==VNODE_DIR) return -EISDIR;
     return node->fs->driver->ops->write(node, buf, count, offset);
 }
@@ -269,13 +272,21 @@ int vfs_getdents(vfs_node* dir, fs_dirent* out, size_t size){
 int vfs_create(vfs_node* dir, char* filename, uint32_t type, uint64_t* inode ){
     (void) type;
 
-    if(vfs_lookup(dir, filename)) return -EEXIST;
+    vfs_node* exists = vfs_lookup(dir, filename);
+    if(exists){
+        put_vnode(exists);
+        return -EEXIST;
+    }
     return dir->fs->driver->ops->create(dir, filename, VNODE_FILE, inode);
 }
 int vfs_mkdir(vfs_node* dir, char* filename, uint32_t type, uint64_t* inode){
     (void)type;
 
-    if(vfs_lookup(dir, filename)) return -EEXIST;
+    vfs_node* exists = vfs_lookup(dir, filename);
+    if(exists){
+        put_vnode(exists);
+        return -EEXIST;
+    }
     return dir->fs->driver->ops->create(dir, filename, VNODE_DIR, inode);
 }
 vfs_node* vfs_lookup(vfs_node* dir, const char* name){

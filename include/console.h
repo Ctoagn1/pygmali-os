@@ -6,7 +6,7 @@
 #include "multiboot.h"
 #include "fd.h"
 #define EXTRA_TEXT_BUFFER_SIZE  1024
-extern const uint32_t virtual_framebuffer;
+extern const uintptr_t virtual_framebuffer;
 struct File;
 typedef struct{
 	uint32_t magic;         /* magic bytes to identify PSF */

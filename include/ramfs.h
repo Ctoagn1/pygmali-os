@@ -40,7 +40,7 @@ typedef struct ramfs_superblock{
 }ramfs_superblock;
 
 uint32_t parse_hex(char* s, int len);
-int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs);
+int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs, uint32_t size);
 uint64_t ramfs_lookup(vfs_node* dir, const char* filename, size_t len);
 int ramfs_create(vfs_node* parent, const char* filename, uint32_t mode, uint64_t* out_inode);
 int ramfs_stat(vfs_node* node, stat_info* info);

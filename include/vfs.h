@@ -2,6 +2,7 @@
 #define VFS
 #include <stddef.h>
 #include "kmalloc.h"
+#include "printf.h"
 #include "errno.h"
 #include "string.h"
 #define VFS_TYPE_LEN 32
@@ -63,7 +64,7 @@ typedef struct stat_info{
 struct fs_driver;
 
 typedef struct fs_instance_t{
-    struct fs_driver* driver;
+    const struct fs_driver* driver;
     uint64_t root_inode_id;
     void* superblock;
     void* device;

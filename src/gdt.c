@@ -92,7 +92,7 @@ void initGdt(){
     , when 0, 4 KiB blocks */
     GDT UserCode = {0, 0xFFFFF, 0xFA, 0xC};
     GDT UserData = {0, 0xFFFFF, 0xF2, 0xC};
-    GDT TaskStateSegment= {(uint32_t)&tss, (uint32_t)sizeof(tss)-1, 0x89, 0x0};
+    GDT TaskStateSegment= {(uint32_t)(uintptr_t)&tss, (uint32_t)sizeof(tss)-1, 0x89, 0x0};
     
     encodeGdtEntry(&gdt[0], NullDescriptor);
     encodeGdtEntry(&gdt[8], KernelCode);

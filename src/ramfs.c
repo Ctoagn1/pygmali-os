@@ -41,7 +41,7 @@ fs_instance_t* create_ramsfs(void* source){
 
     instance->superblock = superblock;
     instance->device = NULL;
-    instance->driver = NULL;
+    instance->driver = &ramfs_driver;
     instance->flags = 0;
     instance->root_inode_id=1;
     instance->root_inode = root;
@@ -79,6 +79,7 @@ int ramfs_create(vfs_node* vnode, const char* filename, uint32_t type, uint64_t*
     size_t len = strlen(filename);
     ramfs_superblock* block = parent->superblock;
     if(len>=MAX_FILENAME) return -ENAMETOOLONG;
+    if((int64_t)ramfs_lookup(vnode, filename, len)!=-ENOENT) return -EEXIST;
 
     ramfs_node* new_node = kmalloc(sizeof(ramfs_node));
     if(!new_node) return -ENOMEM;
@@ -93,6 +94,7 @@ int ramfs_create(vfs_node* vnode, const char* filename, uint32_t type, uint64_t*
     new_node->type = type;
     new_node->linkcount = 1;
     new_node->size=0;
+    new_node->superblock = block;
     new_node->data=NULL;
     block->inode_map[block->id_count]=new_node;
     block->id_count++;
@@ -152,9 +154,9 @@ int ramfs_getdents(vfs_node* vnode, fs_dirent* buf, size_t bufsize){
     }
     while(child){
         size_t namesize = child->namelen+1;
-        if(used_bytes+namesize>bufsize) return 0;
+        if(used_bytes+namesize+sizeof(fs_dirent)>bufsize) return 0;
         buf->inode=child->target->id;
-        buf->reclen=namesize;
+        buf->reclen=namesize+sizeof(fs_dirent);;
         buf->type=child->target->type;
         buf->offset=0; //ignore for now
         memcpy(buf->d_name, child->name, namesize-1);
@@ -178,6 +180,7 @@ int ramfs_unlink(vfs_node* vnode, const char* name){
             else prev->next = it->next;
             child->linkcount--;
             if(child->linkcount==0){
+                kfree(child->data);
                 kfree(child);
             }
 

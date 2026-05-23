@@ -47,7 +47,7 @@ fs: $(KERNEL)
 	./makeiso.sh
 
 run : 
-	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -cdrom pygmali.iso -m 512M -S -s
+	qemu-system-i386 -audiodev pa,id=speaker -machine pcspk-audiodev=speaker -cdrom pygmali.iso -m 512M
 
 clean:
 	rm -rf $(OBJDIR) $(KERNEL) $(ISO_DIR) pygmalios.iso

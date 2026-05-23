@@ -28,21 +28,23 @@ uint32_t parse_hex(char* s, int len){
         char c = s[i];
         if(c>='0' && c<='9') result |= c - '0';
         else if (c >= 'A' && c <= 'F')result |= c - 'A' + 10;
+        else return UINT32_MAX;
     }
     return result;
 }
 
 
 
-int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs){
+int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs, uint32_t size){
 
     uint8_t* p = (uint8_t*)archive;
-
-
+    uint8_t* end = p + size;
+    if(p+sizeof(cpio_newc_header)>end) return -EINVAL;
+    path_tokens_t* toks = kmalloc(sizeof(path_tokens_t));
     while(1){
         cpio_newc_header* header = (cpio_newc_header*)p;
         if(!header) return -1;
-        if(strncmp(header->c_magic, "070701", 6) != 0) break;
+        if(strncmp(header->c_magic, "070701", 6) != 0) return -EINVAL;
         uint32_t namesize = parse_hex(header->c_namesize, 8);
         uint32_t filesize = parse_hex(header->c_filesize, 8);
         uint32_t mode = parse_hex(header->c_mode, 8);
@@ -52,9 +54,8 @@ int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs){
         uint8_t* filedata = (uint8_t*)ALIGN4((uintptr_t)(name+namesize));
         if(strcmp(name, "TRAILER!!!")==0) break;
 
-        path_tokens_t* toks = kmalloc(sizeof(toks));
         tokenize_path(name, toks);
-
+        
         vfs_node* cur = get_vnode(ramfs, ramfs->root_inode_id);
         if(!cur) return -1;
 
@@ -82,6 +83,9 @@ int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs){
         }
         char filename[MAX_FILENAME+1];
         path_token_t* last = &toks->tokens[toks->count-1];
+        if(toks->count == 0){ 
+            return -EINVAL;
+        }
         memcpy(filename, last->start, last->len);
         filename[last->len]='\0';
         
@@ -90,7 +94,8 @@ int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs){
             uint64_t ino;
             int err;
             if(type==CPIO_S_IFDIR) err = vfs_mkdir(cur, filename, mode, &ino);
-            else err = vfs_create(cur, filename, mode, &ino);
+            else if(type==CPIO_S_IFREG) err = vfs_create(cur, filename, mode, &ino);
+            else continue;
 
             if(err){
                 put_vnode(cur);
@@ -109,7 +114,9 @@ int load_cpio_into_ramfs(void* archive, fs_instance_t* ramfs){
         put_vnode(file);
         put_vnode(cur);
         p=(uint8_t*)ALIGN4((uintptr_t)(filedata + filesize));
+        if(p>end)return -EINVAL;
     }
+    kfree(toks);
     return 0;
         
 }

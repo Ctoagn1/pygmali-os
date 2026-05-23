@@ -21,7 +21,7 @@ _Bool cursor_on=true;
 uint32_t textbuffer_size;
 const uint32_t default_background=0x0;
 const uint32_t default_text=0xFFFFFF;
-extern uint32_t framebuffer_1;
+extern uintptr_t framebuffer_1;
 
 
 term_state_t term;
@@ -30,7 +30,7 @@ uint32_t memory_size;
 char* fontfile;
 
 
-const uint32_t virtual_framebuffer = (uint32_t)1021<<22;
+const uintptr_t virtual_framebuffer = (uint32_t)1021<<22;
 struct multiboot_tag_framebuffer* selected_video_mode;
 
 int cursor_column_state=0;
@@ -73,7 +73,7 @@ void terminal_initialize(struct multiboot_tag_framebuffer* vid_mode ){
 
 
 void screen_reset(){
-	for(uint32_t i=0; i<(selected_video_mode->common.framebuffer_width*selected_video_mode->common.framebuffer_height); i++){
+	for(unsigned int i=0; i<(selected_video_mode->common.framebuffer_width*selected_video_mode->common.framebuffer_height); i++){
 		((uint32_t*)virtual_framebuffer)[i]=term.bg;
 	}
 }

@@ -3,8 +3,10 @@
 #include <stddef.h>
 #include "string.h"
 #include "printf.h"
-const void *heap_start=(void*)0xC0400000;
-void *heap_end=(void*)0xC0800000;
+extern uintptr_t _heap_end;
+extern uintptr_t _heap_start;
+void *heap_start=&_heap_start;
+void *heap_end=&_heap_end;
 typedef struct block_header{
     size_t size;
     int free;
